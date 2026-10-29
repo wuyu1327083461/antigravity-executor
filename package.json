@@ -1,6 +1,6 @@
 {
   "name": "antigravity-executor",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Delegate coding tasks from DeepSeek Harness to the Google Antigravity desktop agent: RPC-settled turns that return in seconds, untruncated reports, a destructive/escape split kill switch that is armed out of the box, 5h+weekly quota guards with a cached quota read, human-like inter-turn pacing, dead-session self-heal, and artifact inlining that keeps the planner context small.",
   "icon": "./icon.svg",
   "type": "module",
