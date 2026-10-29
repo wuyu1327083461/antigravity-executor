@@ -1,0 +1,63 @@
+# Antigravity executor bridge — native tool plugin.
+#
+# Toggling this bundle off in dsh's plugins page unregisters the
+# `delegate_coding_task` / `check_environment` / `list_conversations` tools.
+# Nothing is spawned either way: the plugin runs in-process and talks to the
+# Antigravity desktop Language Server over its own HTTP + CLI surface.
+#
+# The config below is the thinking-level selector, the workspace policy, the
+# turn-settlement tuning, the quota guard and the audit/kill-switch pair.
+# Change a value here and (with HMR on) it applies on the next tool call.
+# Every key is optional; the schema defaults are restated so the choices are
+# visible in one place. See lib/config-schema.js for the authoritative list.
+- insert:
+    - id: antigravity-executor
+      name: 'antigravity-executor'
+      config:
+        # Default thinking tier for a delegation: minimal | low | medium | high | extra_high
+        # maps onto Antigravity's flash_lite | flash | pro.
+        thinkingLevel: medium
+        # Let the model override the level per call with `thinking_level`.
+        allowOverride: true
+        # Work in the dsh session's own working directory (workspace_dir optional).
+        followSessionWorkspace: true
+        # Refuse a workspace_dir that sits outside the session workspace.
+        allowOutsideWorkspace: false
+        # Audit the transcript afterwards and report out-of-workspace access.
+        audit: true
+        # Keep false to report escapes; set true to reject the whole result.
+        failOnEscape: false
+        maxSeconds: 900
+
+        # --- turn settlement (REQ-01) -------------------------------------
+        # A finished turn is detected from the Language Server's own RPC state,
+        # so a completed delegation returns within a few seconds instead of
+        # always waiting out the quiet window. `quietWindowSeconds` is only the
+        # fallback used when that RPC is unavailable.
+        pollIntervalSeconds: 2
+        # Confirmation window after the server reports IDLE, to avoid settling
+        # during the brief gap between two tool rounds.
+        fastSettleSeconds: 2
+        quietWindowSeconds: 45
+
+        # --- anti-truncation (REQ-02) -------------------------------------
+        # Read transcript_full.jsonl so reports over ~4000 characters and long
+        # run_command lines are not silently cut short.
+        useFullTranscript: true
+
+        # --- account quota guard (REQ-03) -----------------------------
+        # When the pro tier is nearly exhausted, run the delegation on flash
+        # instead of failing or hanging.
+        quotaFallback:
+          enabled: true
+          proMinFraction: 0.05
+
+        # --- safety, persistence, artifacts (REQ-04/06/07) ----------------
+        # Stop a turn mid-flight when the streaming audit finds an escape or a
+        # destructive command. Requires failOnEscape: true.
+        realtimeKillSwitch: true
+        # Persist session_id -> conversation_id so a dsh restart can resume.
+        persistSessions: true
+        # Collect walkthrough.md / implementation_plan.md / task.md from the
+        # brain directory into the delegation result.
+        includeBrainArtifacts: true

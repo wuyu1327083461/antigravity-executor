@@ -1,0 +1,66 @@
+{
+  "name": "antigravity-executor",
+  "version": "0.4.0",
+  "description": "Delegate coding tasks from DeepSeek Harness to the Google Antigravity desktop agent: RPC-settled turns that return in seconds, untruncated reports, quota-aware tier fallback, a streaming audit with a mid-flight kill switch, persistent sessions, brain artifact collection, and cross-platform discovery.",
+  "icon": "./icon.svg",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./icon": "./icon.svg",
+    "./locale/*.json": "./locale/*.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/audit.js",
+    "lib/artifacts.js",
+    "lib/config-schema.js",
+    "lib/discovery.js",
+    "lib/platform.js",
+    "lib/quota.js",
+    "lib/rpc.js",
+    "lib/sessions.js",
+    "lib/transcript.js",
+    "lib/turn.js",
+    "cordis.patch.yml",
+    "icon.svg",
+    "locale/*.json",
+    "README.md",
+    "skills/*/SKILL.md"
+  ],
+  "scripts": {
+    "test": "node --test lib/*.test.js"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "antigravity",
+    "gemini",
+    "agent",
+    "mcp"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wuyu1327083461/antigravity-executor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/wuyu1327083461/antigravity-executor/issues"
+  },
+  "homepage": "https://github.com/wuyu1327083461/antigravity-executor#readme",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "~4.0.5",
+    "@deepseek-ai/dsh-tools": "0.2.1-rc.4"
+  }
+}

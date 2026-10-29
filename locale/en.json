@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Antigravity Executor",
+    "description": "Delegate coding tasks to the signed-in Antigravity desktop agent. Works in the dsh session directory, with a configurable thinking tier, RPC-driven turn settlement that returns within seconds, untruncated long reports, live account quota with automatic tier fallback, and a workspace audit after every turn."
+  }
+}
