@@ -25,6 +25,20 @@
 - 允许你自己写的：临时验证脚本、`.gitignore` 之类与验收直接相关的配置——
   但要在汇报里说明，不要夹带业务逻辑。
 
+### 铁律：禁止常驻进程
+
+执行器**不得**启动开发服务器或进入 watch 模式。这类命令不会自己退出，
+Cascade 会一直处于忙碌状态，把整轮拖到 `max_seconds`（默认 900 秒）才超时，
+最后拿回一个没有任何诊断信息的 timeout。
+
+- **禁止**：`npm run dev`、`vite`、`next dev`、`ng serve`、`nodemon`、
+  `tsc --watch`、`webpack --watch`
+- **测试必须一次性退出**：`vitest` 裸跑默认进 watch，必须写成 `vitest run`
+  （或 `--run`）；`jest` 不要加 `--watch`；稳妥起见加 `CI=true`
+- **推荐**：`CI=true npm test`、`vitest run`、`npm run build`、`pytest -q`
+
+派单时把这条写进 `task_spec`，不要指望执行器自己记得。
+
 ## 2. 派单规范（怎么调 delegate_coding_task）
 
 参数：

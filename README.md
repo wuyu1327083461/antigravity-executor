@@ -45,6 +45,53 @@ in-process — no MCP server, no sidecar, no external dependencies, no API key.
 | `session_id` | no | Stable label for a feature thread; reuse it to continue the same conversation |
 | `max_seconds` | no | Wall-clock budget (default from config, 900) |
 
+## What changed in 0.5.0
+
+0.4.0 made delegations fast, but several of its new defaults had second-order
+problems that only showed up once the machinery was actually running. This
+release fixes them. The first one is a genuine safety bug.
+
+| Area | 0.4.0 behaviour | 0.5.0 |
+| --- | --- | --- |
+| **Kill switch** | Armed only when `failOnEscape && realtimeKillSwitch` — with the shipped `failOnEscape: false` the **80 ms circuit breaker never fired at all** | Destructive commands (`reg delete`, `diskpart`, recursive force-delete, …) are cut whenever `realtimeKillSwitch` is on, **regardless of `failOnEscape`**. Ordinary escapes still obey `failOnEscape` |
+| Mid-flight audit | Merged the RPC view on every tick (correct) but had no regression test | Locked by four tests: an RPC-only violation must reach the auditor and cancel the turn |
+| Quota buckets | Matched a tier row named `pro` — **no such bucket exists**, so the guard silently did nothing on a real Pro account | Binds the shared `Gemini Models` pool by name/shape; takes the tighter of the tier row and the `gemini-5h` bucket |
+| Weekly quota | Same 5% threshold as the 5h window | Separate, higher reserve (`weeklyProMinFraction: 0.15`), skipped when the reset is under 24h away — a drained week costs days, a drained 5h window costs hours |
+| Quota reads | One `GetUserStatus` per delegation | 3-minute cache, abandoned near the guard threshold; `check_environment` always reads live |
+| Consecutive turns | Could fire 1–2 s apart after the 45 s tax was removed | Inter-turn pacing: minimum gap plus jitter, applied **only before the next turn starts** |
+| Dev servers | `npm run dev` / bare `vitest` silently burned the full 900 s budget | Forbidden in the preamble and the bundled skill; the auditor recognises hanging commands and warns with the elapsed time |
+| Artifacts | Fixed 600-char summary, or unbounded inline after 0.4.0 turned on the full transcript | `maxArtifactInlineChars: 4000`: short files inline verbatim, long ones inline a head **plus their absolute path** so the planner reads the rest on demand |
+| Dead sessions | A persisted mapping outlived its conversation and failed forever | Evicted on the first dead turn, then a fresh conversation is opened and the record is rewritten |
+| Long sessions | No signal that a session was getting expensive | `turn_count` per session; a hint appears past `longSessionTurns` (default 8) |
+
+### The kill-switch bug (read this one)
+
+`realtimeKillSwitch` and `failOnEscape` are not the same kind of switch, and
+0.4.0 wired the breaker to both. `failOnEscape` answers "should an out-of-workspace
+*escape* fail this turn?" — one legitimate answer is `false`, because the executor
+sometimes reads a reference file outside the project. But the breaker was gated on
+the same flag, so the shipped default left it disarmed. A `reg delete` or a
+`Remove-Item -Recurse -Force` would have been *reported* afterwards, never *stopped*.
+
+0.5.0 splits the verdict:
+
+```js
+const verdict = auditor.push(step)
+verdict.blockedDestructive  // reg delete, diskpart, rd /s /q, ri -Recurse, …  -> cut on realtimeKillSwitch alone
+verdict.blockedEscape       // cd-outside, write-outside                     -> still needs failOnEscape
+```
+
+`classifyFinding(kind)` is the exported rule behind those two flags.
+
+### Pacing is not a turn delay
+
+`pacing.minGapSeconds` never slows down a turn you are waiting for. The result
+still comes back as fast as the RPC reports IDLE. What the pacer does is top up
+the gap before the *next* delegation when the previous one ended moments ago, with
+a jittered delay so the gaps are not metronome-regular. It is a mitigation for one
+specific signature (zero-think-time re-dispatch against a real signed-in account),
+not a guarantee of looking organic.
+
 ## What changed in 0.4.0
 
 The 0.3.0 plugin worked, but every delegation carried a fixed 45-second tax, long
@@ -112,10 +159,15 @@ step makes `../../secret.txt` in the next resolve to the path it really touches,
 and it expands PowerShell/Bash aliases (`sl`, `ri`, `pushd`) and environment
 variables (`$env:USERPROFILE`, `$env:TEMP`, `~`) before classifying.
 
-Set `failOnEscape: true` and keep `realtimeKillSwitch: true` to turn a blocking
-finding into an immediate cancellation. This is a real interrupt, not a
-post-hoc verdict: measured, `CancelCascadeInvocation` moves the cascade to
-`IDLE` / `USER_CANCELED` within ~80 ms.
+Keep `realtimeKillSwitch: true` (the default) to turn a *destructive command*
+finding into an immediate cancellation — this no longer depends on
+`failOnEscape`, because tolerating an out-of-workspace read was never meant to
+mean tolerating `reg delete`. Add `failOnEscape: true` as well if you want plain
+workspace escapes (`cd-outside`, `write-outside`) to interrupt the turn too.
+
+This is a real interrupt, not a post-hoc verdict: measured,
+`CancelCascadeInvocation` moves the cascade to `IDLE` / `USER_CANCELED` within
+~80 ms.
 
 It is still an auditor, not a sandbox. See the limitations section.
 
@@ -150,12 +202,27 @@ shipped in this package's `cordis.patch.yml`):
         # Quota guard (REQ-03)
         quotaFallback:
           enabled: true
-          proMinFraction: 0.05       # downgrade pro -> flash below 5% remaining
+          proMinFraction: 0.05       # downgrade pro -> flash below 5% remaining (5h window)
+          weeklyProMinFraction: 0.15 # higher reserve for the weekly window
+          weeklyGuard: true
+          weeklyReserveHours: 24     # skip the weekly guard once the reset is this close
+          cacheTtlSeconds: 180       # reuse a quota read this long (0 = off)
 
-        # Safety, persistence, artifacts (REQ-04/06/07)
-        realtimeKillSwitch: true     # requires failOnEscape: true
-        persistSessions: true
+        # Safety, persistence, artifacts (REQ-04/06/07 + v0.5.0)
+        realtimeKillSwitch: true     # destructive commands always cut, regardless of failOnEscape
+        persistSessions: true        # dead mappings are evicted automatically
         includeBrainArtifacts: true
+        maxArtifactInlineChars: 4000 # longer .md files inline a head + their absolute path
+        maxArtifactHeadChars: 2000
+        longSessionTurns: 8          # suggest a fresh session_id past this many turns
+        hangingCommandWarnSeconds: 45 # warn about dev servers / watch processes after this long
+
+        # Human-like pacing (v0.5.0) — delays only the start of the NEXT turn
+        pacing:
+          enabled: true
+          minGapSeconds: 15
+          jitterMinSeconds: 6
+          jitterMaxSeconds: 15
 ```
 
 Every key is optional and defaults are restated above, so a 0.3.0 profile keeps
@@ -196,11 +263,12 @@ recursive deletes, wildcard deletes, `reg delete`, remote-script piping, and the
 PowerShell alias spellings of all of the above). Reads of Antigravity's own guide
 files are listed separately as benign context rather than violations.
 
-The audit runs **during** the turn as well as after it: with `failOnEscape: true`
-and `realtimeKillSwitch: true`, a blocking finding cancels the cascade mid-flight
-instead of only rejecting the finished report. That is the closest thing to
-containment available through this surface — a determined executor is still not
-physically stopped, so always review the diff and run the verification yourself.
+The audit runs **during** the turn as well as after it. With the default
+`realtimeKillSwitch: true`, a destructive command cancels the cascade mid-flight;
+add `failOnEscape: true` to have plain workspace escapes interrupt it too. That
+is the closest thing to containment available through this surface — a determined
+executor is still not physically stopped, so always review the diff and run the
+verification yourself.
 
 ## Bundled skill: `supervisor-workflow`
 
@@ -421,6 +489,47 @@ compliance with anyone else's terms.
 | `session_id` | 否 | 功能线程的稳定标签；复用同一个值即可在返工轮次里延续同一会话 |
 | `max_seconds` | 否 | 本次委派的墙钟预算（默认取配置值 900） |
 
+## 0.5.0 更新内容
+
+0.4.0 把委派变快了，但它引入的几个新默认值在机器真正跑起来之后暴露出二阶问题。
+本次发布把它们全部修掉。其中第一条是实打实的安全缺陷。
+
+| 方面 | 0.4.0 行为 | 0.5.0 |
+| --- | --- | --- |
+| **熔断开关** | 只有 `failOnEscape && realtimeKillSwitch` 同时为真才武装——而默认 `failOnEscape: false`，于是**80ms 事中熔断从未触发过** | 破坏性命令（`reg delete`、`diskpart`、递归强删等）只要 `realtimeKillSwitch` 开着就熔断，**无视 `failOnEscape`**；普通越界仍受 `failOnEscape` 控制 |
+| 事中审计 | 每个 tick 都合并 RPC 视图（原本就正确）但没有回归测试锁住 | 四条测试锁定：仅存在于 RPC 的违规必须送达审计器并取消回合 |
+| 配额桶 | 按名字找 `pro` 档——**真实账号根本没有这个桶**，保护静默失效 | 按名称/形状绑定共享的 `Gemini Models` 池；tier 行与 `gemini-5h` 桶取更紧者 |
+| 周限额 | 与 5h 窗口共用 5% 阈值 | 独立更高水位（`weeklyProMinFraction: 0.15`），距重置不足 24 小时则不启用——周限额用光要等几天，5h 桶只需几小时 |
+| 配额读取 | 每次委派都实时查一次 `GetUserStatus` | 3 分钟缓存，逼近警戒线自动放弃；`check_environment` 始终实时 |
+| 连续回合 | 45 秒税取消后可能 1~2 秒无缝连发 | 回合间拟人冷却：最小间隔 + 抖动，**只作用于下一轮开始前** |
+| 常驻命令 | `npm run dev` / 裸 `vitest` 会静默烧完 900 秒预算 | Preamble 与内置技能双重禁止；审计器识别常驻命令并按已持续秒数告警 |
+| Brain 产物 | 固定 600 字符摘要，或 0.4.0 开启全量后无上限内联 | `maxArtifactInlineChars: 4000`：短文件全文内联，长文件只内联开头 **+ 绝对路径**，需要细节时主模型自己读 |
+| 失效会话 | 持久化映射活得比会话久，永久失败 | 首次 dead turn 即剔除，随后自动开新会话并重写记录 |
+| 长会话 | 没有任何「越来越贵」的信号 | 每个会话记 `turn_count`，超过 `longSessionTurns`（默认 8）给出提示 |
+
+### 熔断逻辑的缺陷（这一条请重点看）
+
+`realtimeKillSwitch` 和 `failOnEscape` 不是同一类开关，0.4.0 却把熔断器同时拴在两者上。
+`failOnEscape` 回答的是「越界**逃逸**要不要判本轮失败」——答 `false` 完全合理，因为执行器
+偶尔需要读项目外的参考文件。但熔断器被同一个标志卡住，于是默认配置下它根本没有武装。
+一条 `reg delete` 或 `Remove-Item -Recurse -Force` 只会被**事后报告**，永远不会被**当场拦下**。
+
+0.5.0 把结论拆成两个粒度：
+
+```js
+const verdict = auditor.push(step)
+verdict.blockedDestructive  // reg delete、diskpart、rd /s /q、ri -Recurse …  -> 只看 realtimeKillSwitch
+verdict.blockedEscape       // cd-outside、write-outside                    -> 仍需 failOnEscape
+```
+
+`classifyFinding(kind)` 就是这两个标志背后的导出规则。
+
+### 冷却不会拖慢回合
+
+`pacing.minGapSeconds` 绝不会让你正在等的这一轮变慢——结果依然在 RPC 报 IDLE 的瞬间返回。
+冷却做的是：当上一轮刚刚结束就立刻又收到委派时，补足间隔，并叠加随机抖动，避免间隔过于规整。
+它是针对**单一特征**（对真实登录账号的「零思考时间」连发）的缓解手段，不是「伪装成人类」的保证。
+
 ## 0.4.0 更新内容
 
 0.3.0 是能用的，但每次委派都固定多付 45 秒、长报告被静默截断、账号剩余额度
@@ -482,8 +591,12 @@ quota        : plan=Pro (you@example.com)
 PowerShell/Bash 别名（`sl`、`ri`、`pushd`）与环境变量（`$env:USERPROFILE`、
 `$env:TEMP`、`~`）再判定。
 
-设 `failOnEscape: true` 并保持 `realtimeKillSwitch: true`，命中阻断级结论就会立即
-取消。这是真正的中断，不是事后判定：实测 `CancelCascadeInvocation` 约 80 毫秒内
+保持 `realtimeKillSwitch: true`（默认值），命中**高危破坏性命令**就会立即取消——
+这一条已经不再依赖 `failOnEscape`，因为「容忍偶尔读工作区外的文件」从来不该等于
+「容忍 `reg delete`」。如果还想让普通越界（`cd-outside`、`write-outside`）也中断回合，
+再额外设 `failOnEscape: true`。
+
+这是真正的中断，不是事后判定：实测 `CancelCascadeInvocation` 约 80 毫秒内
 把 cascade 置为 `IDLE` / `USER_CANCELED`。
 
 它仍然只是审计器，不是沙箱。见下文限制说明。
@@ -518,12 +631,27 @@ PowerShell/Bash 别名（`sl`、`ri`、`pushd`）与环境变量（`$env:USERPRO
         # 额度保护 (REQ-03)
         quotaFallback:
           enabled: true
-          proMinFraction: 0.05       # pro 剩余低于 5% 时降级 flash
+          proMinFraction: 0.05       # 5h 窗口：pro 剩余低于 5% 时降级 flash
+          weeklyProMinFraction: 0.15 # 周限额用更高水位单独保护
+          weeklyGuard: true
+          weeklyReserveHours: 24     # 距重置不足这么多小时则不启用周保护
+          cacheTtlSeconds: 180       # 配额缓存秒数（0 = 关闭）
 
-        # 安全、持久化、产物 (REQ-04/06/07)
-        realtimeKillSwitch: true     # 需配合 failOnEscape: true
-        persistSessions: true
+        # 安全、持久化、产物 (REQ-04/06/07 + v0.5.0)
+        realtimeKillSwitch: true     # 破坏性命令无条件熔断，与 failOnEscape 无关
+        persistSessions: true        # 失效映射会自动剔除
         includeBrainArtifacts: true
+        maxArtifactInlineChars: 4000 # 更长的 .md 只内联开头 + 绝对路径
+        maxArtifactHeadChars: 2000
+        longSessionTurns: 8          # 超过这么多轮提示换新 session_id
+        hangingCommandWarnSeconds: 45 # dev server / watch 持续这么久后告警
+
+        # 拟人冷却 (v0.5.0) —— 只延迟「下一轮」的开始
+        pacing:
+          enabled: true
+          minGapSeconds: 15
+          jitterMinSeconds: 6
+          jitterMaxSeconds: 15
 ```
 
 每个键都可选，默认值已在上方重述，因此 0.3.0 的 profile 可原样加载。
@@ -558,10 +686,10 @@ verdict      : CLEAN - no out-of-workspace access detected in the transcript
 命令的 PowerShell 别名写法）。读取 Antigravity 自身的指南文件会单独列为无害上下文，
 而不是违规。
 
-审计**在回合运行期间**就会执行，而不只是事后：配合 `failOnEscape: true` 与
-`realtimeKillSwitch: true`，阻断级发现会当场取消 cascade，而不只是拒绝已经完成的
-报告。这是通过该接口能拿到的最接近「隔离」的东西 —— 铁了心的执行器依然不会被物理
-拦住，所以务必自己复核 diff 并亲自跑验证。
+审计**在回合运行期间**就会执行，而不只是事后。默认的 `realtimeKillSwitch: true`
+会让破坏性命令当场取消 cascade；若想让普通工作区越界也中断，再设
+`failOnEscape: true`。这是通过该接口能拿到的最接近「隔离」的东西 —— 铁了心的
+执行器依然不会被物理拦住，所以务必自己复核 diff 并亲自跑验证。
 
 ## 内置技能：`supervisor-workflow`
 

@@ -39,6 +39,9 @@
 | RPC 步骤状态机 | 生成中的步骤 `status=CORTEX_STEP_STATUS_RUNNING`，结束时转 `DONE`。工具步骤在生成期可能呈现为 `CORTEX_STEP_TYPE_GENERIC`，落盘后定型为 `RUN_COMMAND`/`VIEW_FILE` 等 —— 判定必须按 `metadata.toolCall.name` 而不是 `type` |
 | RPC 命令结果 | `RUN_COMMAND` 步骤带 `runCommand:{commandLine, exitCode, combinedOutput:{full}}` 与 `taskDetails:{id, logUri, progress, description}`；`logUri` 指向 `.system_generated/tasks/<task>.log` |
 | 后台命令 | `run_command` 若 `WaitMsBeforeAsync` 到点未完成会转后台，回合内先出 PLANNER_RESPONSE、再由 `CORTEX_STEP_TYPE_SYSTEM_MESSAGE` 回报完成 —— 因此「最后一步是 PLANNER_RESPONSE」不足以判定结束，必须同时看 cascade status 与 terminationReason |
+| 常驻命令 | 裸跑 `npm run dev` / `vite` / `next dev` / `vitest`（默认 watch）会永不退出，Cascade 一直是 BUSY，只能等 `maxSeconds` 超时。派单必须禁止，审计用 `parseHangingCommand` 识别并告警 |
+| 配额桶命名 | `RetrieveUserQuotaSummary` **没有名为 `pro` 的桶**：`pro` 与 `flash` 共用 `Gemini Models` 的 `gemini-5h` / `gemini-weekly`。按名字找 `pro` 会永远找不到，从而静默关掉保护 |
+| 双窗口权重 | 5h 桶用光最多等几小时；`gemini-weekly` 用光可能等好几天，必须用更高水位单独保护 |
 | 取消实测 | `CancelCascadeInvocation` 发出后 **81ms** cascade 即转 IDLE，`terminationReason` 变 `EXECUTOR_TERMINATION_REASON_USER_CANCELED`（实测在 RUN_COMMAND 执行中取消） |
 | 长轮询实测 | 一次 `WaitForConversationFullyIdle` 覆盖整个回合（实测 39.9s 的回合在回合结束瞬间返回），无需 45s 静默窗口 |
 | `agentapi` 多行参数 | 经 `execFile` 传参**不会**截断（实测含换行/引号/`$env:` 的 4 行 prompt 完整落到会话里） |
@@ -149,31 +152,60 @@ export async function waitForTurn(o)
 /** @returns {{ plan, email, tiers: [{id, label, modelId, remainingFraction, resetTime}],
  *              buckets: [{groupId, groupName, bucketId, window, remainingFraction, resetTime, description}],
  *              readAt: number, error?: string }} */
-export async function readQuota(server, { timeoutMs = 8000 } = {})
+export async function readQuota(server, { timeoutMs = 8000, rpc, now } = {})
 
 /** 档位选择：把 thinking level 映射到 Antigravity 的 flash_lite/flash/pro（复用 config-schema 的 THINKING_TIERS） */
 export function tierForLevel(level): string
 
-/** 低额度自动降级。@returns {{ tier, downgraded?: string, note?: string }} */
+/** 低额度自动降级（5h 桶 + 周限额双保险）。@returns {{ tier, downgraded?, note? }} */
 export function applyQuotaFallback(desiredTier, quota, cfg)
+
+/** 绑定共享的 Gemini 计费池（v0.5.0）。@returns {{gemini, weekly?, fiveHour?, thirdParty}} */
+export function pickBillingBuckets(quota)
+
+/** 配额缓存判定（v0.5.0）。@returns {{usable: boolean, reason?, ageMs?}} */
+export function quotaCacheUsable(cached, cfg, { now, force } = {})
+
+/** 配额缓存（v0.5.0）。@returns {{get, usable, read, invalidate, readAt}} */
+export function createQuotaCache()
 
 /** 供 check_environment 渲染的文本块（含倒计时，如 `pro: 65%, resets in 1h 42m`） */
 export function renderQuota(quota, { now = Date.now() } = {}): string
 ```
 
-降级规则：`cfg.quotaFallback.enabled` 且目标档位 `pro`，若 `pro.remainingFraction < proMinFraction` 且 `flash` 仍有额度 → 降级为 `flash`，`downgraded = 'pro -> flash (low quota)'`。
+降级规则（v0.5.0 两道闸，各自只作用于 `pro`）：
+
+1. **5h 闸**：`min(tier 行 pro 值, gemini-5h 桶值) < proMinFraction` → 降 `flash`，
+   `downgraded = 'pro -> flash (low quota)'`。
+2. **周限额闸**：`gemini-weekly < weeklyProMinFraction` **且**距重置 > `weeklyReserveHours`
+   → 降 `flash`，`downgraded = 'pro -> flash (weekly quota reserve)'`。
+3. 无法识别（无 tier 行也无桶）→ **不降级**；`flash` 无额度 → 保持 `pro` 并在 `note` 说明。
+
+配额缓存只在「读取完整 + 未过期 + 未逼近 `proMinFraction + 0.05` 警戒线」时复用；
+`check_environment` 始终强制实时读取。
 
 ### 3.6 `lib/sessions.js` — 会话映射持久化（REQ-06）
 
 ```js
 export function createSessionStore(filePath)
 // 返回 { load(): Promise<Record>, save(state): Promise<void>,
-//        get(state, workspace, sessionId), set(state, {sessionId, workspace, conversationId, tier}),
+//        get(state, workspace, sessionId), set(state, {sessionId, workspace, conversationId, tier, turns?}),
+//        remove(state, workspace, sessionId),
 //        list(state, limit), prune(state, { keepDays = 30 }) }
+
+/** 轮数递增（v0.5.0）：换了 conversation 就从 1 重新数。 */
+export function nextTurnCount(record, conversationId, turns?): number
+
+/** 单会话超过阈值时的提示行（v0.5.0），未超阈返回 undefined。 */
+export function longSessionHint(record, threshold = 8): string | undefined
 ```
 
-记录形状：`{ session_id, conversation_id, workspace_dir, tier, created_at, updated_at }`，key = `` `${workspace}::${sessionId}` ``。
-写入必须原子（写 `*.tmp` 后 `rename`），失败不致命。
+记录形状：`{ session_id, conversation_id, workspace_dir, tier, turn_count?, created_at, updated_at }`，
+key = `` `${workspace}::${sessionId}` ``。写入必须原子（写 `*.tmp` 后 `rename`），失败不致命。
+
+`turn_count` 只在调用方传入 `turns` 或旧记录已带该字段时出现，保证 0.4.0 形状的记录
+可以原样往返（向后兼容）。`remove()` 用于**失效会话自愈**：复用持久化的
+`session_id` 却在 ~0.1s 内收到 dead-turn 错误时，剔除该映射并自动开新会话。
 
 ### 3.7 `lib/artifacts.js` — Git 死锁预检 + Brain 产物回收（REQ-07）
 
@@ -181,8 +213,14 @@ export function createSessionStore(filePath)
 /** @returns {{ worktreeConfig: boolean, configPath, warning?: string }} */
 export async function checkWorktreeConfig(workspaceDir)
 
-/** @returns {Promise<Array<{ name, path, bytes, updatedAt, summary }>>} 只取根目录 .md，排除 .system_generated */
-export async function collectBrainArtifacts(conversationId, { sinceMs = 0, maxFiles = 8, summaryChars = 600 } = {})
+/** @returns {Promise<Array<{ name, path, bytes, chars, updatedAt, summary, inline }>>}
+ *  只取根目录 .md，排除 .system_generated。
+ *  策略：≤ maxInlineChars 直接内联全文（inline: true）；
+ *        > maxInlineChars 只内联 maxArtifactHeadChars 开头 + 绝对路径（inline: false）。 */
+export async function collectBrainArtifacts(conversationId, {
+  sinceMs = 0, maxFiles = 8, summaryChars = 600,
+  maxInlineChars = 4000, oversizeHeadChars = 2000,
+} = {})
 ```
 
 ### 3.8 `lib/platform.js` — 跨平台 shell 前置（REQ-09）
@@ -194,14 +232,15 @@ export function shellNotes(): string[]             // 交给执行器的语法�
 export function workspaceSwitchHint(workspace): string
 ```
 
-### 3.9 `lib/audit.js` — 静态审计（REQ-04 / REQ-05）
+### 3.9 `lib/audit.js` — 静态 / 流式审计（REQ-04 / REQ-05）
 
-保留现有导出（`normalizePath` / `isInside` / `extractPaths` / `auditTurn` / `renderAudit`）**签名与语义不变**，新增：
+保留现有导出（`normalizePath` / `isInside` / `extractPaths` / `auditTurn` / `renderAudit`）**签名与语义不变**，另有：
 
 ```js
 /** 有状态增量审计器：按 step 顺序推进，内部维护虚拟工作目录。 */
 export function createAuditor(workspace)
-// 返回 { push(step): { violations, externalReads, commandCount, writeCount, readCount, blocked },
+// 返回 { push(step): { violations, externalReads, commandCount, writeCount, readCount,
+//                      blocked, blockedDestructive, blockedEscape },
 //        report(): { violations, externalReads, commandCount, writeCount, readCount } }
 
 /** 展开 PowerShell/Bash 别名与环境变量，返回归一化后的命令文本（REQ-05） */
@@ -209,9 +248,36 @@ export function expandAliases(command): string
 
 /** 虚拟工作目录归一化：resolve(cwd, target) */
 export function resolveVirtualPath(cwd, target): string
+
+/** finding 粒度归类（v0.5.0）：'dangerous:*' -> 'destructive'，
+ *  'cd-outside'/'write-outside' -> 'escape'，其余 -> undefined */
+export function classifyFinding(kind): 'destructive'|'escape'|undefined
+
+/** 识别不会自己退出的常驻命令（v0.5.0）。@returns {{id, why}|undefined} */
+export function parseHangingCommand(command)
+
+/** 一个 step 里的全部常驻命令命中（v0.5.0）。@returns {Array<{index, command, id, why}>} */
+export function findHangingCommands(step)
 ```
 
 `auditTurn(steps, sinceIndex, workspace)` 用 `createAuditor` 重新实现，保证两种入口结论一致。
+
+### 3.10 `lib/pacing.js` — 拟人冷却（v0.5.0）
+
+```js
+/** 记录上一轮结束时间，在下一轮委派开始前补足间隔 + 随机抖动。 */
+export function createPacer({ now?, random?, sleep? } = {})
+// 返回 { plan(cfg): {delayMs, reason?, sinceLastMs?},
+//        waitForTurnStart(cfg): Promise<{waitedMs, reason?}>,
+//        noteTurnFinished(), status(), reset() }
+
+/** check_environment 的一行渲染。 */
+export function renderPacing(cfg, state?, now?): string
+```
+
+**只延迟「下一轮的开始」，绝不拖慢本轮结果**。状态在内存中（不落盘）：dsh 重启后
+上一轮间隔本就不可知。
+
 
 ## 4. 规范化 step 形状
 
@@ -248,7 +314,7 @@ allowOverride: true
 followSessionWorkspace: true
 allowOutsideWorkspace: false
 audit: true
-failOnEscape: false
+failOnEscape: false              # 只影响「越界」，不影响「破坏性命令」
 maxSeconds: 900
 quietWindowSeconds: 45           # 兜底静默窗口
 pollIntervalSeconds: 2           # 轮询间隔
@@ -256,22 +322,73 @@ fastSettleSeconds: 2             # RPC 确认 IDLE 后的确认窗口
 useFullTranscript: true          # 优先 transcript_full.jsonl
 quotaFallback:
   enabled: true
-  proMinFraction: 0.05
-realtimeKillSwitch: true         # 配合 failOnEscape 实现事中熔断
+  proMinFraction: 0.05           # 5h 窗口阈值
+  weeklyProMinFraction: 0.15     # 周限额保护水位（更高，v0.5.0）
+  weeklyGuard: true
+  weeklyReserveHours: 24         # 距重置不足这么多小时则不启用周保护
+  cacheTtlSeconds: 180           # 配额缓存（0 = 关闭）
+realtimeKillSwitch: true         # 破坏性命令无条件熔断（v0.5.0）
 persistSessions: true
 includeBrainArtifacts: true
+maxArtifactInlineChars: 4000     # 超过则只内联开头 + 绝对路径（v0.5.0）
+maxArtifactHeadChars: 2000
+longSessionTurns: 8              # 超过则提示换新 session_id（v0.5.0）
+hangingCommandWarnSeconds: 45    # 常驻命令告警阈值（v0.5.0）
+pacing:                          # 拟人冷却（v0.5.0）
+  enabled: true
+  minGapSeconds: 15
+  jitterMinSeconds: 6
+  jitterMaxSeconds: 15
 ```
 
 新增键必须给默认值，且**不破坏**旧 profile（旧键缺省即用默认值）。
+
+### 5.1 熔断粒度（v0.5.0，重要语义变更）
+
+`createAuditor().push()` 返回三个布尔量：
+
+| 字段 | 含义 | 受哪个配置控制 |
+| --- | --- | --- |
+| `blockedDestructive` | 命中 15+ 类高危破坏性命令（`dangerous:*`） | **仅**`realtimeKillSwitch` |
+| `blockedEscape` | 命中 `cd-outside` / `write-outside` | `realtimeKillSwitch` **且** `failOnEscape` |
+| `blocked` | 任一 error 级 finding（旧语义，保留） | 调用方决定 |
+
+`classifyFinding(kind)` 给出上述归类（`'destructive'` / `'escape'` / `undefined`）。
+
+**为什么必须拆开**：0.4.0 把熔断绑在 `failOnEscape && realtimeKillSwitch` 上，
+而 `failOnEscape` 默认 `false`，于是**开箱即用状态下 80ms 事中熔断从未生效**。
+用户设 `failOnEscape: false` 的原意是「容忍偶尔读工作区外的参考文件」，
+绝不是「容忍 `reg delete`」。
+
+### 5.2 配额桶语义（v0.5.0）
+
+`RetrieveUserQuotaSummary` **不存在名为 `pro` 的桶**。实测 Pro 账号返回：
+
+```
+Gemini Models / gemini-5h      (5h)
+Gemini Models / gemini-weekly  (weekly)
+Claude and GPT models / 3p-5h  (5h)
+Claude and GPT models / 3p-weekly (weekly)
+```
+
+`pro` 与 `flash` 共用 `Gemini Models` 池，`pro` 只是单位任务燃烧更快。因此：
+
+- 匹配 pro 额度时用 `pickBillingBuckets()` 绑定 **Gemini 池**，不能按名字找 `pro`；
+- 5h 桶与 tier 行描述同一池，取二者**更紧**的值；
+- 降级 `pro -> flash` 本质是**降低燃烧速率**，不是换池。
+
+周限额（`gemini-weekly`）用更高的 `weeklyProMinFraction` 单独保护：5h 桶用光最多
+等几小时，周限额用光可能等好几天。
+
 
 ## 6. 写作用域（避免撞车）
 
 | 负责人 | 文件 |
 | --- | --- |
-| Lead | `lib/config-schema.js`、`lib/index.js`、`README.md`、`cordis.patch.yml`、`package.json`、`locale/*.json`、`CONTRACT.md` |
+| Lead | `lib/config-schema.js`、`lib/index.js`、`lib/integration.test.js`、`README.md`、`cordis.patch.yml`、`package.json`、`locale/*.json`、`CONTRACT.md` |
 | teammate-rpc | `lib/rpc.js`、`lib/discovery.js` |
 | teammate-audit | `lib/audit.js`、`lib/audit.test.js` |
 | teammate-turn | `lib/transcript.js`、`lib/turn.js` |
-| teammate-support | `lib/quota.js`、`lib/sessions.js`、`lib/artifacts.js`、`lib/platform.js` |
+| teammate-support | `lib/quota.js`、`lib/sessions.js`、`lib/artifacts.js`、`lib/platform.js`、`lib/pacing.js` |
 
 各自文件内的自测脚本放 `lib/<name>.test.js`（自己命名，不与他人的 test 文件重名）。

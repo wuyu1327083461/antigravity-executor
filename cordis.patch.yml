@@ -47,17 +47,54 @@
 
         # --- account quota guard (REQ-03) -----------------------------
         # When the pro tier is nearly exhausted, run the delegation on flash
-        # instead of failing or hanging.
+        # instead of failing or hanging. pro and flash share ONE "Gemini Models"
+        # pool, so downgrading lowers the per-task burn rate rather than moving
+        # to a separate budget.
         quotaFallback:
           enabled: true
+          # 5-hour window: below this, cut the burn rate.
           proMinFraction: 0.05
+          # Weekly window is far more precious (a drained week costs days, a
+          # drained 5h window costs hours), so it is guarded at a higher level.
+          weeklyProMinFraction: 0.15
+          weeklyGuard: true
+          # Skip the weekly guard once its reset is this close.
+          weeklyReserveHours: 24
+          # Reuse a quota read for this long so a fast reject-and-retry loop does
+          # not produce a burst of account calls. Near the guard the cache is
+          # abandoned on purpose; check_environment always reads live.
+          cacheTtlSeconds: 180
 
         # --- safety, persistence, artifacts (REQ-04/06/07) ----------------
-        # Stop a turn mid-flight when the streaming audit finds an escape or a
-        # destructive command. Requires failOnEscape: true.
+        # Mid-flight circuit breaker. DESTRUCTIVE commands (reg delete, diskpart,
+        # recursive force-delete, …) are always cut while this is true, no matter
+        # what failOnEscape says: tolerating an out-of-workspace read was never
+        # meant to mean tolerating `reg delete`. Ordinary workspace escapes
+        # (cd-outside / write-outside) additionally require failOnEscape: true.
         realtimeKillSwitch: true
         # Persist session_id -> conversation_id so a dsh restart can resume.
+        # A dead mapping (thread deleted in the app) is evicted automatically.
         persistSessions: true
         # Collect walkthrough.md / implementation_plan.md / task.md from the
         # brain directory into the delegation result.
         includeBrainArtifacts: true
+        # Audit in full, report compactly: a shorter .md is inlined verbatim; a
+        # longer one is headed (maxArtifactHeadChars) and accompanied by its
+        # absolute path, so the planner can read the rest only when it needs it.
+        maxArtifactInlineChars: 4000
+        maxArtifactHeadChars: 2000
+        # Suggest a fresh session_id once one conversation has run this many
+        # turns (each extra turn re-sends a longer history, costing more quota).
+        longSessionTurns: 8
+        # Warn when a dev server / watch process is still running this long; such
+        # a command never exits and would otherwise burn the whole budget.
+        hangingCommandWarnSeconds: 45
+
+        # --- human-like pacing (v0.5.0) --------------------------------
+        # Never delays a turn's result; only tops up the gap before the NEXT
+        # delegation, with jitter so consecutive gaps are not metronome-regular.
+        pacing:
+          enabled: true
+          minGapSeconds: 15
+          jitterMinSeconds: 6
+          jitterMaxSeconds: 15
