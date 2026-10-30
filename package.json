@@ -1,6 +1,6 @@
 {
   "name": "antigravity-executor",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Delegate coding tasks from DeepSeek Harness to the Google Antigravity desktop agent: an adaptive surgical/creative task mode that fixes 3D and front-end output with a Pass-1 visual gate, RPC-settled turns that return in seconds, an in-process serial queue, a destructive/escape split kill switch (including .git hooks and config), 5h + weekly quota guards with a 24h floor, human-like inter-turn pacing, dead-session self-heal with context recovery, 60s hanging-command circuit breaking, and a git snapshot inlined into every result.",
   "icon": "./icon.svg",
   "type": "module",
