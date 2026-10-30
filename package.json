@@ -1,32 +1,39 @@
 {
   "name": "antigravity-executor",
-  "version": "0.6.1",
-  "description": "Delegate coding tasks from DeepSeek Harness to the Google Antigravity desktop agent: an adaptive surgical/creative task mode that fixes 3D and front-end output with a Pass-1 visual gate, RPC-settled turns that return in seconds, an in-process serial queue, a destructive/escape split kill switch (including .git hooks and config), 5h + weekly quota guards with a 24h floor, human-like inter-turn pacing, dead-session self-heal with context recovery, 60s hanging-command circuit breaking, and a git snapshot inlined into every result.",
+  "version": "0.7.0",
+  "description": "Delegate coding tasks from DeepSeek Harness to the Google Antigravity desktop agent, and watch every turn live in a War Room dashboard: a five-stage lifecycle stepper, streaming tool-call timeline with clean/hanging/escape/destructive verdicts, dual-window (5h + weekly) quota gauges with reset countdowns, one-click emergency abort and cooldown skip, hot runtime policy switches, session management, brain artifacts, and a live HTML/3D preview pane. Backed by a zero-dependency node:http + SSE server on 127.0.0.1 that releases its port cleanly on reload, plus the adaptive surgical/creative task mode, RPC-settled turns, serial queue, split kill switch, quota guards, human-like pacing and git snapshots.",
   "icon": "./icon.svg",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
+    "./client": "./client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./icon": "./icon.svg",
     "./locale/*.json": "./locale/*.json",
+    "./ui/*": "./ui/*",
     "./package.json": "./package.json"
   },
   "files": [
     "lib/index.js",
-    "lib/audit.js",
     "lib/artifacts.js",
+    "lib/audit.js",
     "lib/config-schema.js",
     "lib/discovery.js",
     "lib/pacing.js",
     "lib/platform.js",
+    "lib/proxy.mjs",
     "lib/queue.js",
     "lib/quota.js",
     "lib/rpc.js",
     "lib/sessions.js",
     "lib/task-mode.js",
+    "lib/telemetry.mjs",
     "lib/transcript.js",
     "lib/turn.js",
+    "lib/ui-server.mjs",
+    "client.js",
+    "ui/index.html",
     "cordis.patch.yml",
     "icon.svg",
     "locale/*.json",
@@ -34,7 +41,7 @@
     "skills/*/SKILL.md"
   ],
   "scripts": {
-    "test": "node --test lib/*.test.js"
+    "test": "node --test lib/*.test.js lib/*.test.mjs"
   },
   "keywords": [
     "dsh",
@@ -43,11 +50,15 @@
     "antigravity",
     "gemini",
     "agent",
-    "mcp"
+    "mcp",
+    "dashboard",
+    "telemetry",
+    "sse"
   ],
   "license": "MIT",
   "engines": {
-    "node": ">=22.19.0"
+    "node": ">=22.19.0",
+    "dsh": ">=0.2.1-rc.1 <0.3.0"
   },
   "repository": {
     "type": "git",
@@ -60,10 +71,18 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-slots"
+      ]
     }
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "~4.0.5",
-    "@deepseek-ai/dsh-tools": ">=0.2.1-rc.4 <0.3.0"
+    "@deepseek-ai/cordis": "^4.0.5",
+    "@deepseek-ai/dsh-tools": ">=0.2.1-rc.1 <0.3.0"
   }
 }

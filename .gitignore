@@ -1,6 +1,9 @@
 node_modules/
+# The plugin's own persisted session_id -> conversation_id map. Machine-local
+# state, never source: a stale entry pointing at a deleted thread is noise in a
+# fresh clone.
 sessions.json
 *.log
 .DS_Store
-# Build output from `npm pack` — a publish artifact, not source.
+# `npm pack` output — a publish artifact, not source.
 *.tgz

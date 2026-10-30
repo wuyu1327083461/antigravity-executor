@@ -5,11 +5,19 @@
 # Nothing is spawned either way: the plugin runs in-process and talks to the
 # Antigravity desktop Language Server over its own HTTP + CLI surface.
 #
+# The visual War Room: one Host row (`lib/index.js`) that also binds the
+# dashboard listener and proxies it into the Web GUI, and one Client row
+# (`client.js`) that contributes the sidebar panel icon and the centre panel
+# which embeds that same page. The two rows are one package on purpose — the
+# browser half has nothing to talk to without the Host half, so they must be
+# enabled and disabled together.
+#
 # The config below is the thinking-level selector, the workspace policy, the
-# turn-settlement tuning, the quota guard and the audit/kill-switch pair.
-# Change a value here and (with HMR on) it applies on the next tool call.
-# Every key is optional; the schema defaults are restated so the choices are
-# visible in one place. See lib/config-schema.js for the authoritative list.
+# turn-settlement tuning, the quota guard, the audit/kill-switch pair and the
+# dashboard block. Change a value here and (with HMR on) it applies on the next
+# tool call. Every key is optional; the schema defaults are restated so the
+# choices are visible in one place. See lib/config-schema.js for the authoritative
+# list.
 - insert:
     - id: antigravity-executor
       name: 'antigravity-executor'
@@ -127,3 +135,25 @@
           minGapSeconds: 15
           jitterMinSeconds: 6
           jitterMaxSeconds: 15
+
+        # --- visual War Room dashboard (UI-REQ-01 ~ UI-REQ-06) ----------
+        # A zero-dependency node:http + SSE server that turns the headless
+        # delegation into a live console. Reachable at http://127.0.0.1:18420
+        # (the address is also reported by check_environment), and reachable
+        # inside dsh from the sidebar panel icon, whose centre panel renders
+        # this same page through the host's same-origin proxy.
+        #
+        # `host` may ONLY be a loopback literal. Exposing this on a LAN interface
+        # would let anyone on the network abort turns and widen the workspace
+        # policy, so a non-loopback value is a hard validation failure, not a
+        # silent downgrade. `enabled: false` binds no socket at all.
+        ui:
+          enabled: true
+          host: 127.0.0.1
+          # Preferred port. If it is already taken (a stale process, or another
+          # profile), the server steps forward to the next free one and reports
+          # the real address instead of failing.
+          port: 18420
+          # How many settled turns the dashboard keeps in memory so opening the
+          # page after a fast turn still shows what happened.
+          recentTurnsLimit: 10

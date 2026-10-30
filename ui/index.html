@@ -1,0 +1,3237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravity 智能体驾驶舱 · 控制台</title>
+  <style>
+    :root {
+      --bg-base: var(--dsw-alias-bg-base, #0f1419);
+      --bg-subtle: var(--dsw-alias-bg-layer-1, #161b22);
+      --bg-panel: var(--dsw-alias-bg-layer-1, #1a2028);
+      --bg-panel-hover: var(--dsw-alias-bg-layer-2, #222933);
+      --bg-panel-active: var(--dsw-alias-bg-layer-2, #28313d);
+      --border-color: var(--dsw-alias-border-l1, #2a3441);
+      --border-color-light: var(--dsw-alias-border-l2, #374454);
+      --text-primary: var(--dsw-alias-label-primary, #e6edf3);
+      --text-secondary: var(--dsw-alias-label-secondary, #8b949e);
+      --text-muted: var(--dsw-alias-state-idle-primary, #56616d);
+      --color-accent: var(--dsw-alias-brand-primary, #58a6ff);
+      --color-accent-subtle: rgba(88, 166, 255, 0.15);
+      --color-accent-hover: #79b8ff;
+      --color-success: var(--dsw-alias-state-success-primary, #3fb950);
+      --color-success-subtle: rgba(63, 185, 80, 0.15);
+      --color-warning: var(--dsw-alias-state-warn-primary, #d29922);
+      --color-warning-subtle: rgba(210, 153, 34, 0.15);
+      --color-danger: var(--dsw-alias-state-error-primary, #f85149);
+      --color-danger-subtle: rgba(248, 81, 73, 0.15);
+      --color-purple: #a371f7;
+      --color-purple-subtle: rgba(163, 113, 247, 0.15);
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* 滚动条美化 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.15);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--border-color-light);
+    }
+
+    /* 根布局 Bento Grid */
+    #app-root {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* =========================================================
+       区域一：顶部遥测条
+       ========================================================= */
+    .top-telemetry-bar {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 8px 16px;
+      background: var(--bg-subtle);
+      border-bottom: 1px solid var(--border-color);
+      min-height: 54px;
+      min-width: 0;
+      overflow: hidden;
+      z-index: 10;
+    }
+
+    .telemetry-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .app-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+      color: var(--text-primary);
+      flex-shrink: 0;
+    }
+    .app-brand svg {
+      width: 18px;
+      height: 18px;
+      fill: var(--color-accent);
+    }
+
+    .bridge-status-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      color: var(--text-secondary);
+      min-width: 0;
+    }
+
+    .bridge-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    .status-dot.online {
+      background-color: var(--color-success);
+      box-shadow: 0 0 8px var(--color-success);
+      animation: pulse-green 2s infinite ease-in-out;
+    }
+    .status-dot.offline {
+      background-color: var(--color-danger);
+      box-shadow: 0 0 6px var(--color-danger);
+    }
+
+    @keyframes pulse-green {
+      0%, 100% {
+        transform: scale(1);
+        opacity: 0.85;
+      }
+      50% {
+        transform: scale(1.2);
+        opacity: 1;
+        box-shadow: 0 0 12px var(--color-success);
+      }
+    }
+
+    .btn-rescan {
+      background: var(--color-accent);
+      color: var(--dsw-alias-bg-base, #0f1419);
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .btn-rescan:hover {
+      background: var(--color-accent-hover);
+    }
+    .btn-rescan:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* 双窗口配额条 */
+    .quota-telemetry-cluster {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex: 1 1 auto;
+      max-width: 680px;
+      min-width: 240px;
+    }
+
+    .quota-gauge-box {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+      padding-bottom: 14px;
+    }
+
+    .quota-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+    }
+    .quota-title {
+      color: var(--text-secondary);
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
+    .quota-value {
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
+
+    .quota-bar-track {
+      position: relative;
+      height: 8px;
+      background: #11161d;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      overflow: visible;
+    }
+    .quota-bar-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      border-radius: 3px;
+      background: linear-gradient(90deg, #238636, var(--color-accent));
+      transition: width 0.3s ease;
+    }
+    .quota-bar-fill.warn {
+      background: linear-gradient(90deg, #d29922, #e3b341);
+    }
+    .quota-bar-fill.danger {
+      background: linear-gradient(90deg, #da3633, var(--color-danger));
+    }
+
+    /* 刻度线 */
+    .quota-marker-line {
+      position: absolute;
+      top: -3px;
+      bottom: -3px;
+      width: 1px;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .quota-marker-line.danger {
+      background-color: var(--color-danger);
+    }
+    .quota-marker-line.warning {
+      background-color: var(--color-warning);
+    }
+    .quota-marker-tag {
+      position: absolute;
+      bottom: -14px;
+      transform: translateX(-50%);
+      font-size: 9px;
+      line-height: 1;
+      padding: 1px 3px;
+      border-radius: 2px;
+      white-space: nowrap;
+      pointer-events: none;
+      font-family: var(--font-mono);
+      z-index: 3;
+    }
+    .quota-marker-tag.flip-left {
+      transform: none;
+      left: 0;
+    }
+    .quota-marker-tag.flip-right {
+      transform: translateX(-100%);
+    }
+    .quota-marker-tag.danger {
+      background: rgba(248, 81, 73, 0.25);
+      color: var(--color-danger);
+      border: 1px solid rgba(248, 81, 73, 0.4);
+    }
+    .quota-marker-tag.warning {
+      background: rgba(210, 153, 34, 0.25);
+      color: var(--color-warning);
+      border: 1px solid rgba(210, 153, 34, 0.4);
+    }
+
+    .telemetry-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 1;
+      min-width: 0;
+    }
+
+    /* 低额度保护闪烁徽章 */
+    .quota-fallback-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(210, 153, 34, 0.15);
+      border: 1px solid var(--color-warning);
+      color: var(--color-warning);
+      padding: 4px 8px;
+      border-radius: var(--radius-md);
+      font-size: 11px;
+      font-weight: 500;
+      max-width: 320px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      animation: alert-blink 2s infinite ease-in-out;
+    }
+    @keyframes alert-blink {
+      0%, 100% { opacity: 0.9; }
+      50% { opacity: 0.45; }
+    }
+
+    .sse-disconnected-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(248, 81, 73, 0.15);
+      border: 1px solid var(--color-danger);
+      color: var(--color-danger);
+      padding: 4px 8px;
+      border-radius: var(--radius-md);
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    /* =========================================================
+       第二行：主 Bento Grid 布局
+       ========================================================= */
+    .bento-main-grid {
+      display: grid;
+      grid-template-columns: minmax(560px, 1fr) 380px;
+      gap: 12px;
+      padding: 12px;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* 区域二：中央主舞台 */
+    .stage-column {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .stage-header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 6px 12px;
+      flex-shrink: 0;
+    }
+
+    .tab-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .tab-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tab-btn:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .tab-btn.active {
+      color: var(--text-primary);
+      background: var(--bg-subtle);
+      border-color: var(--border-color-light);
+      font-weight: 600;
+    }
+
+    .btn-preview-trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--color-purple-subtle);
+      border: 1px solid var(--color-purple);
+      color: #d2bcfb;
+      padding: 4px 10px;
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-preview-trigger:hover {
+      background: rgba(163, 113, 247, 0.28);
+    }
+
+    /* 状态机步骤条 */
+    .stepper-container {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 8px;
+      flex-shrink: 0;
+    }
+
+    .step-node {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      position: relative;
+      transition: all 0.2s;
+    }
+    .step-node.active {
+      border-color: var(--color-accent);
+      background: rgba(88, 166, 255, 0.08);
+      box-shadow: 0 0 10px rgba(88, 166, 255, 0.2);
+    }
+    .step-node.active.pacing {
+      border-color: var(--color-warning);
+      background: rgba(210, 153, 34, 0.08);
+      box-shadow: 0 0 10px rgba(210, 153, 34, 0.2);
+    }
+    .step-node.active.running {
+      border-color: var(--color-accent);
+    }
+    .step-node.active.settling {
+      border-color: var(--color-purple);
+      background: rgba(163, 113, 247, 0.08);
+    }
+
+    .step-node-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+    .step-node.active .step-node-header {
+      color: var(--text-primary);
+    }
+    .step-node-title {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .step-node-sub {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+    }
+    .step-node.active .step-node-sub {
+      color: var(--color-accent);
+    }
+
+    .step-action-row {
+      margin-top: 4px;
+    }
+    .btn-step-action {
+      width: 100%;
+      border: none;
+      padding: 3px 6px;
+      border-radius: var(--radius-sm);
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: opacity 0.15s;
+    }
+    .btn-step-action.skip {
+      background: var(--color-warning);
+      color: #0f1419;
+    }
+    .btn-step-action.abort {
+      background: var(--color-danger);
+      color: #ffffff;
+    }
+    .btn-step-action:hover {
+      opacity: 0.88;
+    }
+
+    /* 当前回合上下文卡片 */
+    .turn-context-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .turn-context-empty {
+      background: var(--bg-panel);
+      border: 1px dashed var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .context-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .session-id-tag {
+      font-family: var(--font-mono);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      color: var(--text-primary);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+    .badge-turn-count {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color-light);
+    }
+    .badge-mode-surgical {
+      background: var(--color-accent-subtle);
+      color: var(--color-accent);
+      border: 1px solid rgba(88, 166, 255, 0.3);
+    }
+    .badge-mode-creative {
+      background: var(--color-purple-subtle);
+      color: var(--color-purple);
+      border: 1px solid rgba(163, 113, 247, 0.3);
+    }
+    .badge-status-ok {
+      background: var(--color-success-subtle);
+      color: var(--color-success);
+      border: 1px solid rgba(63, 185, 80, 0.3);
+    }
+    .badge-tier-pro {
+      background: rgba(248, 81, 73, 0.15);
+      color: #ff7b72;
+      border: 1px solid rgba(248, 81, 73, 0.3);
+    }
+    .badge-tier-flash {
+      background: var(--color-accent-subtle);
+      color: var(--color-accent);
+      border: 1px solid rgba(88, 166, 255, 0.3);
+    }
+    .badge-tier-flash-lite {
+      background: rgba(255, 255, 255, 0.08);
+      color: #c9d1d9;
+      border: 1px solid var(--border-color);
+    }
+    .downgrade-hint {
+      color: var(--color-warning);
+      font-size: 11px;
+    }
+
+    .virtual-cwd-strip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 4px 8px;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      word-break: break-all;
+    }
+    .virtual-cwd-strip.escaped {
+      background: rgba(248, 81, 73, 0.15);
+      border-color: var(--color-danger);
+      color: #ff7b72;
+      font-weight: 600;
+    }
+
+    /* 步骤时间轴 */
+    .timeline-panel {
+      flex: 1;
+      min-height: 0;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+    .timeline-header {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+    .timeline-scroll-container {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .step-row {
+      display: grid;
+      grid-template-columns: 42px 110px 1fr 75px auto;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 8px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: var(--radius-sm);
+      font-size: 11.5px;
+      transition: background 0.15s;
+    }
+    .step-row:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .step-row.verdict-destructive {
+      background: rgba(248, 81, 73, 0.18) !important;
+      border-color: var(--color-danger) !important;
+      color: #ffa198;
+    }
+
+    .step-index-cell {
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+    .step-tool-badge {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: var(--radius-sm);
+      background: rgba(88, 166, 255, 0.1);
+      border: 1px solid rgba(88, 166, 255, 0.25);
+      color: var(--color-accent);
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .step-summary-cell {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text-primary);
+    }
+    .step-elapsed-cell {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--text-muted);
+      text-align: right;
+    }
+
+    /* 4 种安全审计徽章 */
+    .verdict-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      font-size: 10px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .verdict-badge.clean {
+      background: var(--color-success-subtle);
+      color: var(--color-success);
+      border: 1px solid rgba(63, 185, 80, 0.3);
+    }
+    .verdict-badge.warn-hanging {
+      background: var(--color-warning-subtle);
+      color: var(--color-warning);
+      border: 1px solid rgba(210, 153, 34, 0.35);
+    }
+    .verdict-badge.escape {
+      background: rgba(255, 123, 114, 0.15);
+      color: #ff7b72;
+      border: 1px solid rgba(255, 123, 114, 0.35);
+    }
+    .verdict-badge.destructive {
+      background: rgba(248, 81, 73, 0.3);
+      color: #ffffff;
+      border: 1px solid var(--color-danger);
+    }
+
+    .scroll-down-notice {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--color-accent);
+      color: var(--dsw-alias-bg-base, #0f1419);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      display: none;
+      z-index: 5;
+    }
+
+    /* 历史回合回溯器 */
+    .history-view-container {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 10px;
+      overflow: hidden;
+    }
+    .history-list-box {
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      background: var(--bg-subtle);
+      overflow-y: auto;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .history-item {
+      padding: 8px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: border-color 0.15s;
+    }
+    .history-item:hover {
+      border-color: var(--border-color-light);
+    }
+    .history-item.active {
+      border-color: var(--color-accent);
+      background: rgba(88, 166, 255, 0.08);
+    }
+    .history-item-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+    }
+    .history-detail-box {
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      background: var(--bg-panel);
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .history-pre-box {
+      background: var(--bg-base);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 180px;
+      overflow-y: auto;
+      color: var(--text-primary);
+    }
+    .abort-alert-card {
+      background: rgba(248, 81, 73, 0.15);
+      border: 1px solid var(--color-danger);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      color: #ff7b72;
+      font-size: 11.5px;
+    }
+
+    /* =========================================================
+       右侧边栏：区域三（上） + 区域四（下）
+       ========================================================= */
+    .sidebar-column {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 12px;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    /* 区域三：运行时策略热控台 */
+    .policy-panel {
+      padding: 12px;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .panel-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* Segmented Control 分段控制器 */
+    .segmented-control {
+      display: flex;
+      background: var(--bg-base);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 2px;
+      gap: 2px;
+    }
+    .seg-item {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 6px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .seg-item:hover {
+      color: var(--text-primary);
+    }
+    .seg-item.active {
+      background: var(--bg-panel-hover);
+      color: var(--color-accent);
+      font-weight: 600;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+
+    /* 开关列表 */
+    .switch-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .switch-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .switch-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+    }
+    .switch-title {
+      font-size: 11.5px;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+    .switch-desc {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+    .switch-desc.warning-note {
+      color: var(--color-warning);
+    }
+
+    /* 自绘滑块开关 */
+    .toggle-switch {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      background: #2a3441;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      left: 2px;
+      top: 2px;
+      width: 14px;
+      height: 14px;
+      background: #ffffff;
+      border-radius: 50%;
+      transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .toggle-switch[aria-checked="true"] {
+      background: var(--color-accent);
+      border-color: var(--color-accent);
+    }
+    .toggle-switch[aria-checked="true"]::after {
+      transform: translateX(16px);
+      background: var(--dsw-alias-bg-base, #0f1419);
+    }
+    /* 危险开关：allowOutsideWorkspace 开启时呈现橙红危险色 */
+    .toggle-switch.danger-switch[aria-checked="true"] {
+      background: var(--color-danger);
+      border-color: var(--color-danger);
+    }
+
+    /* 区域四：右侧下栏 会话与产物 */
+    .data-panel {
+      padding: 10px 12px;
+      gap: 10px;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sub-section-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .sub-section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 4px;
+    }
+
+    .scroll-list {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding-right: 2px;
+    }
+
+    /* 会话项卡片 */
+    .session-card {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .session-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+    .session-id-text {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .session-files-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+    }
+    .file-chip {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      padding: 1px 5px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      max-width: 130px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .btn-evict {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+    .btn-evict:hover {
+      border-color: var(--color-danger);
+      color: var(--color-danger);
+    }
+    .evict-confirm-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+    }
+    .btn-evict-yes {
+      background: var(--color-danger);
+      border: none;
+      color: #fff;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .btn-evict-no {
+      background: var(--border-color);
+      border: none;
+      color: var(--text-primary);
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 10px;
+    }
+
+    /* 产物项 */
+    .artifact-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 11px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .artifact-item:hover {
+      border-color: var(--color-accent);
+      background: rgba(88, 166, 255, 0.04);
+    }
+    .artifact-name {
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .artifact-meta {
+      color: var(--text-muted);
+      font-size: 10px;
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+    }
+
+    .empty-placeholder {
+      padding: 16px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 11.5px;
+    }
+
+    /* =========================================================
+       产物抽屉面板 & 遮罩
+       ========================================================= */
+    .drawer-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(2px);
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease-out;
+    }
+    .drawer-overlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .artifact-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 520px;
+      max-width: 90vw;
+      height: 100vh;
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border-color-light);
+      box-shadow: -8px 0 28px rgba(0, 0, 0, 0.6);
+      z-index: 101;
+      transform: translateX(100%);
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+    }
+    .artifact-drawer.visible {
+      transform: translateX(0);
+    }
+
+    .drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-subtle);
+    }
+    .drawer-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+    }
+    .btn-drawer-close {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 16px;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: var(--radius-sm);
+      line-height: 1;
+    }
+    .btn-drawer-close:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-primary);
+    }
+
+    /* Markdown 简易排版样式 */
+    .md-render h1, .md-render h2, .md-render h3 {
+      margin-top: 16px;
+      margin-bottom: 8px;
+      color: #ffffff;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 4px;
+    }
+    .md-render h1 { font-size: 18px; }
+    .md-render h2 { font-size: 15px; }
+    .md-render h3 { font-size: 13px; }
+    .md-render p { margin-bottom: 10px; }
+    .md-render ul, .md-render ol {
+      margin-bottom: 10px;
+      padding-left: 20px;
+    }
+    .md-render li { margin-bottom: 4px; }
+    .md-render code {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 5px;
+      border-radius: 3px;
+      color: #f0f6fc;
+    }
+    .md-render pre {
+      background: var(--bg-base);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 10px;
+      overflow-x: auto;
+      margin-bottom: 12px;
+    }
+    .md-render pre code {
+      background: transparent;
+      padding: 0;
+      color: #e6edf3;
+      font-size: 12px;
+    }
+    .md-render table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 12px;
+      font-size: 12px;
+    }
+    .md-render th, .md-render td {
+      border: 1px solid var(--border-color);
+      padding: 6px 10px;
+      text-align: left;
+    }
+    .md-render th {
+      background: var(--bg-subtle);
+      font-weight: 600;
+    }
+
+    /* =========================================================
+       实时预览分屏面板（HTML Canvas Workspace Preview）
+       ========================================================= */
+    .preview-split-panel {
+      position: fixed;
+      top: 54px;
+      right: 0;
+      bottom: 0;
+      width: 46vw;
+      min-width: 320px;
+      max-width: 80vw;
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border-color-light);
+      box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.25s ease-out;
+    }
+    .preview-split-panel.visible {
+      transform: translateX(0);
+    }
+
+    .preview-drag-resizer {
+      position: absolute;
+      left: -4px;
+      top: 0;
+      bottom: 0;
+      width: 8px;
+      cursor: col-resize;
+      z-index: 60;
+      background: transparent;
+    }
+    .preview-drag-resizer:hover {
+      background: rgba(88, 166, 255, 0.3);
+    }
+
+    .preview-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: var(--bg-subtle);
+      border-bottom: 1px solid var(--border-color);
+      flex-shrink: 0;
+    }
+    .preview-file-title {
+      font-size: 11.5px;
+      font-family: var(--font-mono);
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .preview-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .auto-reload-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .preview-iframe {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #ffffff;
+    }
+
+    /* =========================================================
+       Toast 通知系统
+       ========================================================= */
+    .toast-container {
+      position: fixed;
+      top: 64px;
+      right: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 1000;
+      pointer-events: none;
+    }
+    .toast-item {
+      pointer-events: auto;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 8px 14px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-primary);
+      animation: toast-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    .toast-item.toast-success {
+      border-color: var(--color-success);
+    }
+    .toast-item.toast-error {
+      border-color: var(--color-danger);
+      background: #251619;
+    }
+    .toast-item.toast-warning {
+      border-color: var(--color-warning);
+    }
+    @keyframes toast-in {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* 响应式断点适配 */
+    @media (max-width: 1400px) {
+      .app-brand span {
+        letter-spacing: 0;
+        font-size: 13px;
+      }
+      .quota-telemetry-cluster {
+        gap: 10px;
+      }
+    }
+
+    @media (max-width: 1100px) {
+      .quota-fallback-badge {
+        font-size: 0;
+      }
+      .quota-fallback-icon {
+        font-size: 11px;
+      }
+    }
+
+    /* 窄屏宿主环境适配（例如 dsh 侧边栏内嵌面板约 980px 宽度）：
+       单行遥测布局会导致两个配额桶被挤压至标题与倒计时标签被截断（ellipsis）；
+       在此断点下重排为两行：品牌与桥接状态居首行，配额条占满次行，
+       确保配额标题与「百分比 · 重置倒计时」文字完整清晰可读。
+       宽屏独立运行（1280px+）继续保持单行布局不变。 */
+    @media (max-width: 1180px) {
+      .top-telemetry-bar {
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        padding: 8px 12px;
+        align-items: center;
+      }
+      .telemetry-left {
+        order: 1;
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .telemetry-right {
+        order: 2;
+        flex: 0 0 auto;
+      }
+      .quota-telemetry-cluster {
+        order: 3;
+        flex: 1 1 100%;
+        max-width: none;
+        min-width: 0;
+        gap: 12px;
+      }
+      .bridge-status-card {
+        min-width: 0;
+        flex: 0 1 auto;
+      }
+      .bridge-text {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .quota-header-row {
+        gap: 6px;
+      }
+      /* 允许百分比与倒计时文本保持完整宽度，避免截断 */
+      .quota-value {
+        flex: none;
+        overflow: visible;
+        text-overflow: clip;
+        white-space: nowrap;
+      }
+      .quota-title {
+        flex: 0 1 auto;
+        min-width: 0;
+      }
+    }
+
+    /* 辅助功能：无障碍减少动画 */
+    @media (prefers-reduced-motion: reduce) {
+      *, ::after, ::before {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app-root">
+    <!-- 区域一：顶部遥测条 -->
+    <header class="top-telemetry-bar">
+      <div class="telemetry-left">
+        <div class="app-brand">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+          <span>ANTIGRAVITY EXECUTOR</span>
+        </div>
+        <div id="bridge-status-indicator" class="bridge-status-card">
+          <span class="status-dot offline"></span>
+          <span class="bridge-text">检测中...</span>
+        </div>
+        <button id="btn-rescan" class="btn-rescan" style="display: none;">
+          🔄 重新扫描桌面端
+        </button>
+      </div>
+
+      <!-- 双窗口配额条 -->
+      <div class="quota-telemetry-cluster">
+        <!-- 5 小时桶 -->
+        <div class="quota-gauge-box">
+          <div class="quota-header-row">
+            <span class="quota-title">5小时配额桶</span>
+            <span id="five-hour-label" class="quota-value">— 无数据</span>
+          </div>
+          <div class="quota-bar-track">
+            <div id="five-hour-fill" class="quota-bar-fill" style="width: 0%;"></div>
+            <div id="five-hour-marker" class="quota-marker-line danger" style="left: 5%;">
+              <span id="five-hour-marker-tag" class="quota-marker-tag danger">警戒 5%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 周限额桶 -->
+        <div class="quota-gauge-box">
+          <div class="quota-header-row">
+            <span class="quota-title">周限额储备桶</span>
+            <span id="weekly-label" class="quota-value">— 无数据</span>
+          </div>
+          <div class="quota-bar-track">
+            <div id="weekly-fill" class="quota-bar-fill" style="width: 0%;"></div>
+            <div id="weekly-marker" class="quota-marker-line warning" style="left: 15%;">
+              <span id="weekly-marker-tag" class="quota-marker-tag warning">储备 15%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="telemetry-right">
+        <!-- 低额度保护闪烁徽章 -->
+        <div id="quota-fallback-badge" class="quota-fallback-badge" style="display: none;" title="⚠️ 低额度保护生效中：Pro 请求已自动降级为 Flash">
+          <span class="quota-fallback-icon">⚠️</span> <span class="quota-fallback-text">低额度保护生效中：Pro 请求已自动降级为 Flash</span>
+        </div>
+        <!-- SSE 断开重连提示 -->
+        <div id="sse-disconnect-badge" class="sse-disconnected-badge" style="display: none;">
+          ⚠️ 实时连接已断开，正在重连…
+        </div>
+      </div>
+    </header>
+
+    <!-- 第二行：Bento Grid 主布局 -->
+    <main class="bento-main-grid">
+      <!-- 区域二：中央主舞台 -->
+      <section class="stage-column">
+        <!-- 舞台顶部控制栏 -->
+        <div class="stage-header-bar">
+          <div class="tab-group">
+            <button id="tab-current" class="tab-btn active">当前回合</button>
+            <button id="tab-history" class="tab-btn" style="display: none;">历史回合 (0)</button>
+          </div>
+          <button id="btn-preview-trigger" class="btn-preview-trigger" style="display: none;">
+            👁️ 实时预览 HTML 画布
+          </button>
+        </div>
+
+        <!-- 1. 五阶段状态机步骤条 -->
+        <div id="stepper-cluster" class="stepper-container">
+          <div id="step-queued" class="step-node">
+            <div class="step-node-header">
+              <span class="step-node-title">1 队列等待</span>
+              <span>⏸️</span>
+            </div>
+            <span id="step-queued-sub" class="step-node-sub">Queued: 0</span>
+          </div>
+
+          <div id="step-pacing" class="step-node">
+            <div class="step-node-header">
+              <span class="step-node-title">2 拟人冷却</span>
+              <span>⏳</span>
+            </div>
+            <span id="step-pacing-sub" class="step-node-sub">Pacing: 0.0s</span>
+            <div id="pacing-action-row" class="step-action-row" style="display: none;">
+              <button id="btn-skip-pacing" class="btn-step-action skip">⚡ 立即发送</button>
+            </div>
+          </div>
+
+          <div id="step-running" class="step-node">
+            <div class="step-node-header">
+              <span class="step-node-title">3 执行审计</span>
+              <span>🚀</span>
+            </div>
+            <span id="step-running-sub" class="step-node-sub">Running · 0.0s</span>
+            <div id="running-action-row" class="step-action-row" style="display: none;">
+              <button id="btn-abort-turn" class="btn-step-action abort">⛔ 中断回合</button>
+            </div>
+          </div>
+
+          <div id="step-settling" class="step-node">
+            <div class="step-node-header">
+              <span class="step-node-title">4 快速结算</span>
+              <span>⚡</span>
+            </div>
+            <span id="step-settling-sub" class="step-node-sub">Settling · 0.0s</span>
+          </div>
+
+          <div id="step-idle" class="step-node active">
+            <div class="step-node-header">
+              <span class="step-node-title">5 空闲就绪</span>
+              <span>✅</span>
+            </div>
+            <span class="step-node-sub">Idle Ready</span>
+          </div>
+        </div>
+
+        <!-- 主舞台内容切换视图：当前视图 vs 历史视图 -->
+        <div id="stage-active-view" style="display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0;">
+          <!-- 2. 当前回合上下文卡片 -->
+          <div id="turn-context-box">
+            <div class="turn-context-empty">当前没有运行中的回合，系统正处于空闲就绪状态</div>
+          </div>
+
+          <!-- 3. 流式步骤时间轴 -->
+          <div class="timeline-panel">
+            <div class="timeline-header">
+              <span>流式步骤审计时间轴</span>
+              <span id="timeline-step-count">共 0 步</span>
+            </div>
+            <div id="timeline-scroll-container" class="timeline-scroll-container">
+              <div class="empty-placeholder">暂无执行步骤</div>
+            </div>
+            <div id="scroll-down-notice" class="scroll-down-notice">
+              有新步骤 ↓ 点击查看最底
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. 历史回合回溯视图 -->
+        <div id="stage-history-view" class="history-view-container" style="display: none;">
+          <div id="history-turns-list" class="history-list-box">
+            <div class="empty-placeholder">暂无历史回合</div>
+          </div>
+          <div id="history-turn-detail" class="history-detail-box">
+            <div class="empty-placeholder">选择左侧回合以回溯执行细节</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 右侧列：区域三（上） + 区域四（下） -->
+      <aside class="sidebar-column">
+        <!-- 区域三：运行时策略热控台 -->
+        <section class="panel policy-panel">
+          <div class="panel-title">
+            <span>⚙️ 运行时策略热控台</span>
+            <span style="font-size: 10px; color: var(--text-muted); font-weight: normal;">实时热生效</span>
+          </div>
+
+          <!-- 默认思考深度 / 模型档位 -->
+          <div class="form-group">
+            <label class="form-label">默认思考深度 (Thinking Tier)</label>
+            <div class="segmented-control" id="seg-thinking-level">
+              <button class="seg-item" data-value="minimal">Flash Lite</button>
+              <button class="seg-item" data-value="medium">Flash (Medium)</button>
+              <button class="seg-item" data-value="high">Pro (High)</button>
+            </div>
+          </div>
+
+          <!-- 任务模式策略覆盖 -->
+          <div class="form-group">
+            <label class="form-label">任务模式强制覆盖 (Task Mode)</label>
+            <div class="segmented-control" id="seg-task-mode">
+              <button class="seg-item" data-value="auto">Auto</button>
+              <button class="seg-item" data-value="surgical">🔧 Surgical</button>
+              <button class="seg-item" data-value="creative">🎨 Creative</button>
+            </div>
+          </div>
+
+          <!-- 安全开关列表 -->
+          <div class="switch-list">
+            <div class="switch-item">
+              <div class="switch-info">
+                <span class="switch-title">高危命令实时熔断</span>
+                <span class="switch-desc">realtimeKillSwitch</span>
+              </div>
+              <button type="button" role="switch" aria-checked="false" id="switch-killswitch" class="toggle-switch"></button>
+            </div>
+
+            <div class="switch-item">
+              <div class="switch-info">
+                <span class="switch-title">工作区越界即拒绝</span>
+                <span class="switch-desc">failOnEscape</span>
+              </div>
+              <button type="button" role="switch" aria-checked="false" id="switch-failescape" class="toggle-switch"></button>
+            </div>
+
+            <div class="switch-item">
+              <div class="switch-info">
+                <span class="switch-title">允许访问工作区外</span>
+                <span class="switch-desc warning-note" id="desc-outside-note" style="display: none;">可临时处理桌面文档，用完建议关闭</span>
+                <span class="switch-desc" id="desc-outside-default">allowOutsideWorkspace</span>
+              </div>
+              <button type="button" role="switch" aria-checked="false" id="switch-outside" class="toggle-switch danger-switch"></button>
+            </div>
+
+            <div class="switch-item">
+              <div class="switch-info">
+                <span class="switch-title">连续轮次拟人冷却</span>
+                <span class="switch-desc">pacingEnabled</span>
+              </div>
+              <button type="button" role="switch" aria-checked="false" id="switch-pacing" class="toggle-switch"></button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 区域四：持久化会话与产物成果 -->
+        <section class="panel data-panel">
+          <!-- A. 持久化会话列表 -->
+          <div class="sub-section-container">
+            <div class="sub-section-header">
+              <span>📂 持久化会话</span>
+              <span id="sessions-count-badge" style="font-family: var(--font-mono); font-size: 10px;">0</span>
+            </div>
+            <div id="sessions-scroll-list" class="scroll-list">
+              <div class="empty-placeholder">暂无委派会话</div>
+            </div>
+          </div>
+
+          <!-- B. 产物成果库 -->
+          <div class="sub-section-container">
+            <div class="sub-section-header">
+              <span>📦 产物成果库</span>
+              <span id="artifacts-count-badge" style="font-family: var(--font-mono); font-size: 10px;">0</span>
+            </div>
+            <div id="artifacts-scroll-list" class="scroll-list">
+              <div class="empty-placeholder">暂无产物成果</div>
+            </div>
+          </div>
+        </section>
+      </aside>
+    </main>
+
+    <!-- 产物滑出抽屉 -->
+    <div id="drawer-overlay" class="drawer-overlay"></div>
+    <div id="artifact-drawer" class="artifact-drawer">
+      <div class="drawer-header">
+        <span id="drawer-filename" class="drawer-title">产物查看</span>
+        <button id="btn-close-drawer" class="btn-drawer-close" title="关闭 (Esc)">✕</button>
+      </div>
+      <div id="drawer-content" class="drawer-body md-render">
+        <div class="empty-placeholder">加载中...</div>
+      </div>
+    </div>
+
+    <!-- 实时预览分屏面板 -->
+    <div id="preview-split-panel" class="preview-split-panel">
+      <div id="preview-resizer" class="preview-drag-resizer"></div>
+      <div class="preview-panel-header">
+        <div id="preview-title" class="preview-file-title">
+          <span>👁️ HTML 画布预览</span>
+        </div>
+        <div class="preview-controls">
+          <label class="auto-reload-label">
+            <input type="checkbox" id="chk-auto-reload" checked>
+            <span>回合结束自动刷新</span>
+          </label>
+          <button id="btn-refresh-preview" class="btn-rescan" style="padding: 2px 8px;">🔄 刷新</button>
+          <button id="btn-close-preview" class="btn-drawer-close" title="关闭分屏">✕</button>
+        </div>
+      </div>
+      <iframe id="preview-iframe" class="preview-iframe" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+    </div>
+
+    <!-- Toast 容器 -->
+    <div id="toast-container" class="toast-container"></div>
+  </div>
+
+  <!-- ES Module 核心脚本 -->
+  <script type="module">
+    // -----------------------------------------------------------------
+    // 1. 全局状态容器与初始化数据
+    // -----------------------------------------------------------------
+    const state = {
+      bridge: {
+        online: false,
+        pid: null,
+        port: null,
+        plan: null,
+        email: null,
+        error: null
+      },
+      quota: {
+        buckets: [],
+        bucketsByFamily: {
+          fiveHour: null,
+          weekly: null
+        },
+        activeFallback: false,
+        cachedAt: null
+      },
+      lifecycle: {
+        phase: 'idle',
+        queueLength: 0,
+        pacingRemainingMs: null,
+        runningTurnId: null,
+        elapsedMs: null
+      },
+      activeTurn: null,
+      recentTurns: [],
+      sessions: [],
+      artifacts: [],
+      runtimeConfig: {
+        thinkingLevel: 'medium',
+        allowOverride: false,
+        taskMode: 'auto',
+        failOnEscape: true,
+        realtimeKillSwitch: true,
+        allowOutsideWorkspace: false,
+        pacingEnabled: true,
+        audit: true,
+        hangingCommandTimeoutSeconds: 60,
+        longSessionTurns: 8,
+        quotaFallback: {
+          proMinFraction: 0.05,
+          weeklyProMinFraction: 0.15,
+          weeklyReserveHours: 24,
+          enabled: true
+        }
+      }
+    };
+
+    // UI 本地运行状态
+    const ui = {
+      activeTab: 'current', // 'current' | 'history'
+      selectedHistoryIndex: 0,
+      autoScrollPaused: false,
+      previewVisible: false,
+      previewRelativePath: null,
+      lifecycleTicker: null,
+      lastLifecycleUpdateTimestamp: Date.now(),
+      isEvictingSessionId: null
+    };
+
+    // DOM 元素缓存
+    const el = {
+      bridgeIndicator: document.getElementById('bridge-status-indicator'),
+      btnRescan: document.getElementById('btn-rescan'),
+      fiveHourLabel: document.getElementById('five-hour-label'),
+      fiveHourFill: document.getElementById('five-hour-fill'),
+      fiveHourMarker: document.getElementById('five-hour-marker'),
+      fiveHourMarkerTag: document.getElementById('five-hour-marker-tag'),
+      weeklyLabel: document.getElementById('weekly-label'),
+      weeklyFill: document.getElementById('weekly-fill'),
+      weeklyMarker: document.getElementById('weekly-marker'),
+      weeklyMarkerTag: document.getElementById('weekly-marker-tag'),
+      quotaFallbackBadge: document.getElementById('quota-fallback-badge'),
+      sseDisconnectBadge: document.getElementById('sse-disconnect-badge'),
+
+      tabCurrent: document.getElementById('tab-current'),
+      tabHistory: document.getElementById('tab-history'),
+      stageActiveView: document.getElementById('stage-active-view'),
+      stageHistoryView: document.getElementById('stage-history-view'),
+      btnPreviewTrigger: document.getElementById('btn-preview-trigger'),
+
+      stepQueued: document.getElementById('step-queued'),
+      stepQueuedSub: document.getElementById('step-queued-sub'),
+      stepPacing: document.getElementById('step-pacing'),
+      stepPacingSub: document.getElementById('step-pacing-sub'),
+      pacingActionRow: document.getElementById('pacing-action-row'),
+      btnSkipPacing: document.getElementById('btn-skip-pacing'),
+      stepRunning: document.getElementById('step-running'),
+      stepRunningSub: document.getElementById('step-running-sub'),
+      runningActionRow: document.getElementById('running-action-row'),
+      btnAbortTurn: document.getElementById('btn-abort-turn'),
+      stepSettling: document.getElementById('step-settling'),
+      stepSettlingSub: document.getElementById('step-settling-sub'),
+      stepIdle: document.getElementById('step-idle'),
+
+      turnContextBox: document.getElementById('turn-context-box'),
+      timelineScrollContainer: document.getElementById('timeline-scroll-container'),
+      timelineStepCount: document.getElementById('timeline-step-count'),
+      scrollDownNotice: document.getElementById('scroll-down-notice'),
+
+      historyTurnsList: document.getElementById('history-turns-list'),
+      historyTurnDetail: document.getElementById('history-turn-detail'),
+
+      segThinkingLevel: document.getElementById('seg-thinking-level'),
+      segTaskMode: document.getElementById('seg-task-mode'),
+      switchKillswitch: document.getElementById('switch-killswitch'),
+      switchFailEscape: document.getElementById('switch-failescape'),
+      switchOutside: document.getElementById('switch-outside'),
+      descOutsideNote: document.getElementById('desc-outside-note'),
+      descOutsideDefault: document.getElementById('desc-outside-default'),
+      switchPacing: document.getElementById('switch-pacing'),
+
+      sessionsScrollList: document.getElementById('sessions-scroll-list'),
+      sessionsCountBadge: document.getElementById('sessions-count-badge'),
+      artifactsScrollList: document.getElementById('artifacts-scroll-list'),
+      artifactsCountBadge: document.getElementById('artifacts-count-badge'),
+
+      drawerOverlay: document.getElementById('drawer-overlay'),
+      artifactDrawer: document.getElementById('artifact-drawer'),
+      drawerFilename: document.getElementById('drawer-filename'),
+      drawerContent: document.getElementById('drawer-content'),
+      btnCloseDrawer: document.getElementById('btn-close-drawer'),
+
+      previewSplitPanel: document.getElementById('preview-split-panel'),
+      previewResizer: document.getElementById('preview-resizer'),
+      previewTitle: document.getElementById('preview-title'),
+      chkAutoReload: document.getElementById('chk-auto-reload'),
+      btnRefreshPreview: document.getElementById('btn-refresh-preview'),
+      btnClosePreview: document.getElementById('btn-close-preview'),
+      previewIframe: document.getElementById('preview-iframe'),
+
+      toastContainer: document.getElementById('toast-container')
+    };
+
+    // -----------------------------------------------------------------
+    // 2. 工具辅助函数
+    // -----------------------------------------------------------------
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function formatBytes(bytes) {
+      if (typeof bytes !== 'number' || isNaN(bytes)) return '0 B';
+      if (bytes < 1024) return bytes + ' B';
+      const kb = bytes / 1024;
+      if (kb < 1024) return kb.toFixed(1) + ' KB';
+      return (kb / 1024).toFixed(1) + ' MB';
+    }
+
+    function formatTime(timestamp) {
+      if (!timestamp) return '--:--:--';
+      const d = new Date(timestamp);
+      if (isNaN(d.getTime())) return '--:--:--';
+      return d.toTimeString().split(' ')[0];
+    }
+
+    function formatCountdown(targetTime) {
+      if (!targetTime) return '— 无数据';
+      const target = typeof targetTime === 'number' ? targetTime : new Date(targetTime).getTime();
+      const now = Date.now();
+      const diff = target - now;
+      if (diff <= 0) {
+        return '已重置';
+      }
+      const dayMs = 24 * 3600 * 1000;
+      const hourMs = 3600 * 1000;
+      const minuteMs = 60 * 1000;
+
+      if (diff >= dayMs) {
+        const days = Math.floor(diff / dayMs);
+        const hours = Math.floor((diff % dayMs) / hourMs);
+        return `${days}d ${hours}h`;
+      }
+      if (diff >= hourMs) {
+        const hours = Math.floor(diff / hourMs);
+        const mins = Math.floor((diff % hourMs) / minuteMs);
+        return `${hours}h ${mins}m`;
+      }
+      const mins = Math.max(1, Math.floor(diff / minuteMs));
+      return `${mins}m`;
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = `toast-item toast-${type}`;
+      let icon = 'ℹ️';
+      if (type === 'success') icon = '✅';
+      if (type === 'error') icon = '❌';
+      if (type === 'warning') icon = '⚠️';
+
+      toast.innerHTML = `<span>${icon}</span><span>${escapeHtml(message)}</span>`;
+      el.toastContainer.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-10px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // 简单轻量 Markdown 渲染器（带安全转义）
+    function renderMarkdown(rawText) {
+      if (!rawText) return '<p class="empty-placeholder">空内容</p>';
+      const safe = escapeHtml(rawText);
+
+      // 提取代码块以防止被其他标签污染
+      const codeBlocks = [];
+      let text = safe.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+        const idx = codeBlocks.length;
+        codeBlocks.push(`<pre><code class="lang-${lang}">${code}</code></pre>`);
+        return `__CODE_BLOCK_${idx}__`;
+      });
+
+      // 标题处理
+      text = text.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+      text = text.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+      text = text.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+      // 粗体与行内代码
+      text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+      // 表格处理
+      text = text.replace(/((?:\|[^\n]+\|\r?\n)+)/g, (tableMatch) => {
+        const lines = tableMatch.trim().split(/\r?\n/);
+        if (lines.length < 2) return tableMatch;
+        let html = '<table>';
+        lines.forEach((line, index) => {
+          if (line.includes('---')) return; // 分隔线忽略
+          const cols = line.split('|').slice(1, -1);
+          if (index === 0) {
+            html += '<thead><tr>' + cols.map(c => `<th>${c.trim()}</th>`).join('') + '</tr></thead><tbody>';
+          } else {
+            html += '<tr>' + cols.map(c => `<td>${c.trim()}</td>`).join('') + '</tr>';
+          }
+        });
+        html += '</tbody></table>';
+        return html;
+      });
+
+      // 列表处理
+      const lines = text.split(/\r?\n/);
+      let inUl = false;
+      let inOl = false;
+      const parsedLines = [];
+
+      lines.forEach(line => {
+        const ulMatch = line.match(/^[-*]\s+(.*)$/);
+        const olMatch = line.match(/^(\d+)\.\s+(.*)$/);
+
+        if (ulMatch) {
+          if (!inUl) {
+            parsedLines.push('<ul>');
+            inUl = true;
+          }
+          parsedLines.push(`<li>${ulMatch[1]}</li>`);
+        } else if (olMatch) {
+          if (!inOl) {
+            parsedLines.push('<ol>');
+            inOl = true;
+          }
+          parsedLines.push(`<li>${olMatch[2]}</li>`);
+        } else {
+          if (inUl) { parsedLines.push('</ul>'); inUl = false; }
+          if (inOl) { parsedLines.push('</ol>'); inOl = false; }
+          if (line.trim().length > 0 && !line.startsWith('<h') && !line.startsWith('<table') && !line.startsWith('__CODE_BLOCK_')) {
+            parsedLines.push(`<p>${line}</p>`);
+          } else {
+            parsedLines.push(line);
+          }
+        }
+      });
+      if (inUl) parsedLines.push('</ul>');
+      if (inOl) parsedLines.push('</ol>');
+
+      text = parsedLines.join('\n');
+
+      // 还原代码块
+      codeBlocks.forEach((block, idx) => {
+        text = text.replace(`__CODE_BLOCK_${idx}__`, block);
+      });
+
+      return text;
+    }
+
+    // -----------------------------------------------------------------
+    // 3. 网络请求 API 封装
+    // -----------------------------------------------------------------
+
+    // Resolve a route against the page's own base so the dashboard works both at
+    // the origin root and under dsh's `/antigravity-executor` proxy prefix.
+    function apiUrl(path) {
+      const raw = String(path).replace(/^\/+/, '')
+      const base = typeof document !== 'undefined' && typeof document.baseURI === 'string' ? document.baseURI : ''
+      try { return new URL(raw, base.endsWith('/') ? base : base.replace(/[^/]*$/, '')).href }
+      catch { return path }
+    }
+
+    async function apiPost(url, body) {
+      try {
+        const res = await fetch(apiUrl(url), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const json = await res.json().catch(() => ({ ok: false, error: '响应格式无效' }));
+        if (!res.ok || !json.ok) {
+          const err = json.error || `HTTP ${res.status}`;
+          showToast(`操作失败：${err}`, 'error');
+          return { ok: false, error: err };
+        }
+        return { ok: true, data: json };
+      } catch (e) {
+        const err = e.message || '网络连接错误';
+        showToast(`请求异常：${err}`, 'error');
+        return { ok: false, error: err };
+      }
+    }
+
+    async function fetchState() {
+      try {
+        const res = await fetch(apiUrl('api/state'));
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        Object.assign(state, data);
+        renderAll();
+      } catch (err) {
+        showToast(`状态校准失败: ${err.message}`, 'error');
+      }
+    }
+
+    // -----------------------------------------------------------------
+    // 4. 视图渲染体系
+    // -----------------------------------------------------------------
+
+    // 渲染区域一：顶部遥测
+    function renderTopBar() {
+      const { bridge, quota, runtimeConfig } = state;
+
+      // 桥接状态
+      if (bridge.online) {
+        el.bridgeIndicator.innerHTML = `
+          <span class="status-dot online"></span>
+          <span class="bridge-text">
+            🟢 Connected · PID ${escapeHtml(bridge.pid || '-')} · Port ${escapeHtml(bridge.port || '-')} · Plan: ${escapeHtml(bridge.plan || 'Default')} (${escapeHtml(bridge.email || 'N/A')})
+          </span>
+        `;
+        el.btnRescan.style.display = 'none';
+      } else {
+        el.bridgeIndicator.innerHTML = `
+          <span class="status-dot offline"></span>
+          <span class="bridge-text">🔴 Disconnected ${bridge.error ? `(${escapeHtml(bridge.error)})` : ''}</span>
+        `;
+        el.btnRescan.style.display = 'inline-flex';
+      }
+
+      // 配额回退配置读取
+      const fallbackCfg = runtimeConfig.quotaFallback || {
+        proMinFraction: 0.05,
+        weeklyProMinFraction: 0.15,
+        weeklyReserveHours: 24,
+        enabled: true
+      };
+      const proMinFraction = fallbackCfg.proMinFraction ?? 0.05;
+      const weeklyProMinFraction = fallbackCfg.weeklyProMinFraction ?? 0.15;
+      const weeklyReserveHours = fallbackCfg.weeklyReserveHours ?? 24;
+
+      // 5 小时桶
+      const fiveHour = quota.bucketsByFamily?.fiveHour;
+      if (fiveHour && fiveHour.remainingFraction !== null && fiveHour.remainingFraction !== undefined) {
+        const pct = Math.max(0, Math.min(100, (fiveHour.remainingFraction * 100))).toFixed(1);
+        const countdown = formatCountdown(fiveHour.resetTime);
+        el.fiveHourLabel.textContent = `${pct}% · ${countdown} 后重置`;
+        el.fiveHourFill.style.width = `${pct}%`;
+
+        if (fiveHour.remainingFraction < proMinFraction) {
+          el.fiveHourFill.className = 'quota-bar-fill danger';
+        } else if (fiveHour.remainingFraction < 0.2) {
+          el.fiveHourFill.className = 'quota-bar-fill warn';
+        } else {
+          el.fiveHourFill.className = 'quota-bar-fill';
+        }
+
+        if (countdown === '已重置') {
+          // 防抖触发一次校准
+          debounceCalibration();
+        }
+      } else {
+        el.fiveHourLabel.textContent = '— 无数据';
+        el.fiveHourFill.style.width = '0%';
+        el.fiveHourFill.className = 'quota-bar-fill';
+      }
+      // 5小时刻度线
+      const proMinPct = (proMinFraction * 100).toFixed(0);
+      const proMinPctVal = proMinFraction * 100;
+      el.fiveHourMarker.style.left = `${proMinPct}%`;
+      el.fiveHourMarkerTag.textContent = `警戒 ${proMinPct}%`;
+      el.fiveHourMarkerTag.classList.remove('flip-left', 'flip-right');
+      if (proMinPctVal < 12) {
+        el.fiveHourMarkerTag.classList.add('flip-left');
+      } else if (proMinPctVal > 88) {
+        el.fiveHourMarkerTag.classList.add('flip-right');
+      }
+
+      // 周限额桶
+      const weekly = quota.bucketsByFamily?.weekly;
+      let isWeeklyReserveReleased = false;
+      let effectiveWeeklyThreshold = weeklyProMinFraction;
+
+      if (weekly && weekly.remainingFraction !== null && weekly.remainingFraction !== undefined) {
+        const pct = Math.max(0, Math.min(100, (weekly.remainingFraction * 100))).toFixed(1);
+        const countdown = formatCountdown(weekly.resetTime);
+        el.weeklyLabel.textContent = `${pct}% · ${countdown} 后重置`;
+        el.weeklyFill.style.width = `${pct}%`;
+
+        // 判定距重置时间是否在 reserveHours 之内
+        const target = typeof weekly.resetTime === 'number' ? weekly.resetTime : new Date(weekly.resetTime).getTime();
+        const diffHours = (target - Date.now()) / (3600 * 1000);
+        if (diffHours > 0 && diffHours < weeklyReserveHours) {
+          isWeeklyReserveReleased = true;
+          effectiveWeeklyThreshold = proMinFraction;
+        }
+
+        if (weekly.remainingFraction < effectiveWeeklyThreshold) {
+          el.weeklyFill.className = 'quota-bar-fill danger';
+        } else if (weekly.remainingFraction < 0.25) {
+          el.weeklyFill.className = 'quota-bar-fill warn';
+        } else {
+          el.weeklyFill.className = 'quota-bar-fill';
+        }
+
+        if (countdown === '已重置') {
+          debounceCalibration();
+        }
+      } else {
+        el.weeklyLabel.textContent = '— 无数据';
+        el.weeklyFill.style.width = '0%';
+        el.weeklyFill.className = 'quota-bar-fill';
+      }
+
+      // 周限额刻度线退守与标签展示
+      let weeklyMarkerPctVal = 15;
+      if (isWeeklyReserveReleased) {
+        weeklyMarkerPctVal = proMinFraction * 100;
+        el.weeklyMarker.style.left = `${weeklyMarkerPctVal.toFixed(0)}%`;
+        el.weeklyMarkerTag.className = 'quota-marker-tag danger';
+        el.weeklyMarkerTag.textContent = '🔓 最后24h储备已释放';
+      } else {
+        weeklyMarkerPctVal = weeklyProMinFraction * 100;
+        el.weeklyMarker.style.left = `${weeklyMarkerPctVal.toFixed(0)}%`;
+        el.weeklyMarkerTag.className = 'quota-marker-tag warning';
+        el.weeklyMarkerTag.textContent = `储备 ${weeklyMarkerPctVal.toFixed(0)}%`;
+      }
+      el.weeklyMarkerTag.classList.remove('flip-left', 'flip-right');
+      if (weeklyMarkerPctVal < 12) {
+        el.weeklyMarkerTag.classList.add('flip-left');
+      } else if (weeklyMarkerPctVal > 88) {
+        el.weeklyMarkerTag.classList.add('flip-right');
+      }
+
+      // 低额度保护常驻闪烁徽章
+      let triggerFallback = quota.activeFallback === true;
+      if (fiveHour && fiveHour.remainingFraction !== null && fiveHour.remainingFraction < proMinFraction) {
+        triggerFallback = true;
+      }
+      if (weekly && weekly.remainingFraction !== null && weekly.remainingFraction < effectiveWeeklyThreshold) {
+        triggerFallback = true;
+      }
+      el.quotaFallbackBadge.style.display = triggerFallback ? 'inline-flex' : 'none';
+      if (triggerFallback) {
+        el.quotaFallbackBadge.title = '⚠️ 低额度保护生效中：Pro 请求已自动降级为 Flash';
+      }
+    }
+
+    let calibrationTimer = null;
+    function debounceCalibration() {
+      if (calibrationTimer) return;
+      calibrationTimer = setTimeout(() => {
+        calibrationTimer = null;
+        fetchState();
+      }, 5000);
+    }
+
+    // 渲染状态机步骤条
+    function renderStepper() {
+      const { lifecycle } = state;
+      const { phase, queueLength, pacingRemainingMs, elapsedMs } = lifecycle;
+
+      // 清除所有 active 样式
+      [el.stepQueued, el.stepPacing, el.stepRunning, el.stepSettling, el.stepIdle].forEach(node => {
+        node.className = 'step-node';
+      });
+
+      el.pacingActionRow.style.display = 'none';
+      el.runningActionRow.style.display = 'none';
+
+      el.stepQueuedSub.textContent = `Queued: ${queueLength || 0}`;
+
+      if (phase === 'queued') {
+        el.stepQueued.classList.add('active');
+      } else if (phase === 'pacing') {
+        el.stepPacing.classList.add('active', 'pacing');
+        el.pacingActionRow.style.display = 'block';
+      } else if (phase === 'running') {
+        el.stepRunning.classList.add('active', 'running');
+        el.runningActionRow.style.display = 'block';
+      } else if (phase === 'settling') {
+        el.stepSettling.classList.add('active', 'settling');
+      } else {
+        el.stepIdle.classList.add('active');
+      }
+    }
+
+    // 本地读秒器循环（基于时间差，避免轮询）
+    function updateLifecycleTick() {
+      const { lifecycle } = state;
+      const { phase } = lifecycle;
+      const now = Date.now();
+      const deltaMs = now - ui.lastLifecycleUpdateTimestamp;
+
+      if (phase === 'pacing') {
+        const baseRemain = lifecycle.pacingRemainingMs || 0;
+        const currentRemain = Math.max(0, baseRemain - deltaMs);
+        el.stepPacingSub.textContent = `Pacing: ${(currentRemain / 1000).toFixed(1)}s`;
+      } else if (phase === 'running') {
+        const baseElapsed = lifecycle.elapsedMs || 0;
+        const currentElapsed = (baseElapsed + deltaMs) / 1000;
+        el.stepRunningSub.textContent = `Running · ${currentElapsed.toFixed(1)}s`;
+      } else if (phase === 'settling') {
+        const baseElapsed = lifecycle.elapsedMs || 0;
+        const currentElapsed = (baseElapsed + deltaMs) / 1000;
+        el.stepSettlingSub.textContent = `Settling · ${currentElapsed.toFixed(1)}s`;
+      }
+    }
+
+    // 渲染当前回合卡片
+    function renderActiveTurnCard() {
+      const turn = state.activeTurn;
+      if (!turn) {
+        let lastSettledHint = '';
+        if (state.recentTurns && state.recentTurns.length > 0) {
+          const lastTurn = state.recentTurns[0];
+          const durationSec = (lastTurn.durationMs ? (lastTurn.durationMs / 1000).toFixed(1) : 0);
+          const timeStr = formatTime(lastTurn.settledAt || lastTurn.startedAt);
+          lastSettledHint = `
+            <div id="btn-view-last-turn" style="margin-top:8px; cursor:pointer; color:var(--color-accent); font-size:12px; display:inline-flex; align-items:center; gap:4px; text-decoration:underline;">
+              ✅ 上一轮已结算（${escapeHtml(timeStr)}，耗时 ${durationSec}s），点此查看该回合
+            </div>
+          `;
+        }
+        el.turnContextBox.innerHTML = `
+          <div class="turn-context-empty">
+            <div>当前没有运行中的回合，系统正处于空闲就绪状态</div>
+            ${lastSettledHint}
+          </div>
+        `;
+
+        if (state.recentTurns && state.recentTurns.length > 0) {
+          const btn = document.getElementById('btn-view-last-turn');
+          if (btn) {
+            btn.addEventListener('click', () => {
+              ui.selectedHistoryIndex = 0;
+              switchTab('history');
+            });
+          }
+        }
+        return;
+      }
+
+      const turnCount = turn.turnCount || 1;
+      const turnLimit = turn.turnLimit || 8;
+
+      let modeBadge = '';
+      if (turn.effectiveMode === 'surgical') {
+        modeBadge = '<span class="badge badge-mode-surgical">🔧 Surgical</span>';
+      } else if (turn.effectiveMode === 'creative') {
+        modeBadge = '<span class="badge badge-mode-creative">🎨 Creative</span>';
+      }
+
+      let tierBadge = '';
+      if (turn.effectiveTier === 'pro') {
+        tierBadge = '<span class="badge badge-tier-pro">🔥 Pro (High)</span>';
+      } else if (turn.effectiveTier === 'flash') {
+        tierBadge = '<span class="badge badge-tier-flash">⚡ Flash (Medium)</span>';
+      } else {
+        tierBadge = '<span class="badge badge-tier-flash-lite">💡 Flash Lite</span>';
+      }
+
+      const downgradeHtml = turn.downgradedReason
+        ? `<span class="downgrade-hint">↓ 已降级：${escapeHtml(turn.downgradedReason)}</span>`
+        : '';
+
+      const cwdEscapedClass = turn.cwdEscaped ? 'virtual-cwd-strip escaped' : 'virtual-cwd-strip';
+      const cwdIcon = turn.cwdEscaped ? '⚠️ CWD Escaped:' : '📁 Virtual CWD:';
+
+      el.turnContextBox.innerHTML = `
+        <div class="turn-context-card">
+          <div class="context-row">
+            <span class="session-id-tag">Session: ${escapeHtml(turn.sessionId)}</span>
+            <span class="badge badge-turn-count">Turn ${turnCount}/${turnLimit}</span>
+            ${modeBadge}
+            ${tierBadge}
+            ${downgradeHtml}
+          </div>
+          <div class="${cwdEscapedClass}">
+            <span>${cwdIcon}</span>
+            <span>${escapeHtml(turn.virtualCwd || turn.workspaceDir || '工作区根目录')}</span>
+          </div>
+          ${turn.taskSpecHead ? `<div style="font-size:11px; color:var(--text-secondary); max-height:36px; overflow:hidden; text-overflow:ellipsis;">任务: ${escapeHtml(turn.taskSpecHead)}</div>` : ''}
+        </div>
+      `;
+    }
+
+    // 渲染步骤行
+    function createStepRowElement(step) {
+      const row = document.createElement('div');
+      const isDestructive = step.verdict?.status === 'destructive';
+      row.className = isDestructive ? 'step-row verdict-destructive' : 'step-row';
+
+      // 序号
+      const idxCell = document.createElement('span');
+      idxCell.className = 'step-index-cell';
+      idxCell.textContent = `#${step.stepIndex}`;
+
+      // 工具名
+      const toolCell = document.createElement('span');
+      toolCell.className = 'step-tool-badge';
+      toolCell.textContent = step.toolName || 'tool';
+      toolCell.title = step.toolName || '';
+
+      // 摘要
+      const summaryCell = document.createElement('span');
+      summaryCell.className = 'step-summary-cell';
+      summaryCell.textContent = step.summary || '无描述摘要';
+      summaryCell.title = step.summary || '';
+
+      // 耗时
+      const elapsedCell = document.createElement('span');
+      elapsedCell.className = 'step-elapsed-cell';
+      elapsedCell.textContent = `${step.verdict?.elapsedMs ?? 0}ms`;
+
+      // 安全判定徽章
+      const verdictCell = document.createElement('span');
+      const vStatus = step.verdict?.status || 'clean';
+      if (vStatus === 'clean') {
+        verdictCell.className = 'verdict-badge clean';
+        verdictCell.textContent = '🟢 Clean';
+      } else if (vStatus === 'warn_hanging') {
+        verdictCell.className = 'verdict-badge warn-hanging';
+        const timeout = state.runtimeConfig.hangingCommandTimeoutSeconds || 60;
+        const hangingSec = Math.min(timeout, Math.floor((step.verdict?.elapsedMs || 0) / 1000));
+        verdictCell.textContent = `🟡 Hanging (${hangingSec}s / ${timeout}s)`;
+      } else if (vStatus === 'escape') {
+        verdictCell.className = 'verdict-badge escape';
+        const pathNote = step.virtualCwd ? ` · ${step.virtualCwd}` : '';
+        verdictCell.textContent = `🟠 Escape${pathNote}`;
+      } else if (vStatus === 'destructive') {
+        verdictCell.className = 'verdict-badge destructive';
+        verdictCell.textContent = '🔴 Blocked Destructive';
+      }
+
+      row.appendChild(idxCell);
+      row.appendChild(toolCell);
+      row.appendChild(summaryCell);
+      row.appendChild(elapsedCell);
+      row.appendChild(verdictCell);
+
+      if (isDestructive) {
+        const killTag = document.createElement('span');
+        killTag.style.fontWeight = '700';
+        killTag.style.fontSize = '10px';
+        killTag.style.marginLeft = '4px';
+        killTag.textContent = '[⚡ 已触发 80ms 硬件熔断]';
+        row.appendChild(killTag);
+      }
+
+      return row;
+    }
+
+    // 渲染步骤时间轴
+    function renderStepsTimeline() {
+      const container = el.timelineScrollContainer;
+      const steps = state.activeTurn?.steps || [];
+      el.timelineStepCount.textContent = `共 ${steps.length} 步`;
+
+      if (steps.length === 0) {
+        container.innerHTML = '<div class="empty-placeholder">暂无执行步骤</div>';
+        return;
+      }
+
+      container.innerHTML = '';
+      const fragment = document.createDocumentFragment();
+      for (const step of steps) {
+        fragment.appendChild(createStepRowElement(step));
+      }
+      container.appendChild(fragment);
+
+      if (!ui.autoScrollPaused) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }
+
+    // 追加单步并优化滚动
+    function appendSingleStep(step) {
+      const container = el.timelineScrollContainer;
+      if (container.querySelector('.empty-placeholder')) {
+        container.innerHTML = '';
+      }
+      const row = createStepRowElement(step);
+      container.appendChild(row);
+
+      const stepsCount = state.activeTurn?.steps?.length || 0;
+      el.timelineStepCount.textContent = `共 ${stepsCount} 步`;
+
+      if (!ui.autoScrollPaused) {
+        container.scrollTop = container.scrollHeight;
+        el.scrollDownNotice.style.display = 'none';
+      } else {
+        el.scrollDownNotice.style.display = 'block';
+      }
+    }
+
+    // 渲染历史回合视图
+    function renderHistoryView() {
+      const { recentTurns } = state;
+      el.tabHistory.textContent = `历史回合 (${recentTurns.length})`;
+
+      // 仅在 idle 且有历史数据时展示历史 tab
+      if (state.lifecycle.phase === 'idle' && recentTurns.length > 0) {
+        el.tabHistory.style.display = 'inline-block';
+      } else {
+        el.tabHistory.style.display = 'none';
+        if (ui.activeTab === 'history') {
+          switchTab('current');
+        }
+      }
+
+      if (recentTurns.length === 0) {
+        el.historyTurnsList.innerHTML = '<div class="empty-placeholder">暂无已结算历史回合</div>';
+        el.historyTurnDetail.innerHTML = '<div class="empty-placeholder">选择左侧回合以回溯执行细节</div>';
+        return;
+      }
+
+      // 渲染左侧列表
+      el.historyTurnsList.innerHTML = '';
+      const fragment = document.createDocumentFragment();
+
+      recentTurns.forEach((turn, idx) => {
+        const item = document.createElement('div');
+        item.className = idx === ui.selectedHistoryIndex ? 'history-item active' : 'history-item';
+        item.addEventListener('click', () => {
+          ui.selectedHistoryIndex = idx;
+          renderHistoryView();
+        });
+
+        const modeIcon = turn.effectiveMode === 'creative' ? '🎨' : '🔧';
+        const statusBadge = `<span class="badge ${turn.status === 'ok' ? 'badge-status-ok' : 'badge-tier-pro'}">${escapeHtml(turn.status)}</span>`;
+
+        item.innerHTML = `
+          <div class="history-item-row">
+            <span style="font-weight:600; font-family:var(--font-mono);">${modeIcon} ${escapeHtml((turn.sessionId || '').slice(0, 8))}</span>
+            ${statusBadge}
+          </div>
+          <div class="history-item-row" style="color:var(--text-secondary); font-size:10px;">
+            <span>耗时 ${(turn.durationMs ? (turn.durationMs / 1000).toFixed(1) : 0)}s</span>
+            <span>${formatTime(turn.settledAt || turn.startedAt)}</span>
+          </div>
+        `;
+        fragment.appendChild(item);
+      });
+      el.historyTurnsList.appendChild(fragment);
+
+      // 渲染选中的历史详情
+      const activeHist = recentTurns[ui.selectedHistoryIndex] || recentTurns[0];
+      if (!activeHist) return;
+
+      let abortHtml = '';
+      if (activeHist.aborted) {
+        abortHtml = `
+          <div class="abort-alert-card">
+            <strong>⛔ 异常中断:</strong> ${escapeHtml(activeHist.aborted.reason || '无说明')}
+            <br>
+            <span style="font-size:10.5px; opacity:0.85;">
+              触发源: ${escapeHtml(activeHist.aborted.trigger)} · 熔断响应耗时: ${activeHist.aborted.cancelLatencyMs || 0}ms
+            </span>
+          </div>
+        `;
+      }
+
+      const stepsHtml = (activeHist.steps || []).map(s => {
+        const row = createStepRowElement(s);
+        return row.outerHTML;
+      }).join('');
+
+      el.historyTurnDetail.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:8px;">
+          <div>
+            <span style="font-weight:700; font-size:13px;">Turn ID: ${escapeHtml(activeHist.turnId || 'N/A')}</span>
+            <span style="margin-left:8px; font-size:11px; color:var(--text-muted); font-family:var(--font-mono);">${escapeHtml(activeHist.sessionId)}</span>
+          </div>
+          <span class="badge badge-turn-count">总耗时: ${(activeHist.durationMs ? (activeHist.durationMs / 1000).toFixed(1) : 0)}s</span>
+        </div>
+        ${abortHtml}
+        <div>
+          <span style="font-weight:600; font-size:11.5px; color:var(--text-secondary);">执行步骤流 (${(activeHist.steps || []).length} 步)</span>
+          <div style="margin-top:6px; display:flex; flex-direction:column; gap:4px; max-height:220px; overflow-y:auto; border:1px solid var(--border-color); padding:6px; border-radius:var(--radius-sm); background:var(--bg-base);">
+            ${stepsHtml || '<div class="empty-placeholder">无步骤记录</div>'}
+          </div>
+        </div>
+        <div>
+          <span style="font-weight:600; font-size:11.5px; color:var(--text-secondary);">最终结算报告摘要 (finalReportHead)</span>
+          <pre class="history-pre-box">${escapeHtml(activeHist.finalReportHead || '无报告内容')}</pre>
+        </div>
+        <div>
+          <span style="font-weight:600; font-size:11.5px; color:var(--text-secondary);">Git 变更追踪快照 (gitSummary)</span>
+          <pre class="history-pre-box">${escapeHtml(activeHist.gitSummary || '无 Git 差异变更')}</pre>
+        </div>
+      `;
+    }
+
+    // 切换主舞台 Tab
+    function switchTab(tab) {
+      ui.activeTab = tab;
+      if (tab === 'current') {
+        el.tabCurrent.classList.add('active');
+        el.tabHistory.classList.remove('active');
+        el.stageActiveView.style.display = 'flex';
+        el.stageHistoryView.style.display = 'none';
+      } else {
+        el.tabCurrent.classList.remove('active');
+        el.tabHistory.classList.add('active');
+        el.stageActiveView.style.display = 'none';
+        el.stageHistoryView.style.display = 'grid';
+        renderHistoryView();
+      }
+    }
+
+    // 渲染策略热控台
+    function renderPolicy() {
+      const cfg = state.runtimeConfig;
+
+      // 1. Thinking Level 分段控制
+      el.segThinkingLevel.querySelectorAll('.seg-item').forEach(btn => {
+        if (btn.dataset.value === cfg.thinkingLevel) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+
+      // 2. Task Mode 分段控制
+      el.segTaskMode.querySelectorAll('.seg-item').forEach(btn => {
+        if (btn.dataset.value === cfg.taskMode) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+
+      // 3. 开关控件
+      setSwitchChecked(el.switchKillswitch, !!cfg.realtimeKillSwitch);
+      setSwitchChecked(el.switchFailEscape, !!cfg.failOnEscape);
+      setSwitchChecked(el.switchOutside, !!cfg.allowOutsideWorkspace);
+      setSwitchChecked(el.switchPacing, !!cfg.pacingEnabled);
+
+      if (cfg.allowOutsideWorkspace) {
+        el.descOutsideNote.style.display = 'inline';
+        el.descOutsideDefault.style.display = 'none';
+      } else {
+        el.descOutsideNote.style.display = 'none';
+        el.descOutsideDefault.style.display = 'inline';
+      }
+    }
+
+    function setSwitchChecked(btn, checked) {
+      btn.setAttribute('aria-checked', checked ? 'true' : 'false');
+    }
+
+    // 渲染持久化会话列表
+    function renderSessions() {
+      const { sessions, runtimeConfig } = state;
+      el.sessionsCountBadge.textContent = sessions.length;
+
+      if (!sessions || sessions.length === 0) {
+        el.sessionsScrollList.innerHTML = '<div class="empty-placeholder">暂无委派会话</div>';
+        return;
+      }
+
+      el.sessionsScrollList.innerHTML = '';
+      const fragment = document.createDocumentFragment();
+      const longTurnsThreshold = runtimeConfig.longSessionTurns || 8;
+
+      sessions.forEach(sess => {
+        const card = document.createElement('div');
+        card.className = 'session-card';
+
+        const isLong = (sess.turnCount || 0) >= longTurnsThreshold;
+        const longBadge = isLong ? '<span class="badge badge-tier-pro" style="font-size:9.5px;">⚠️ 长会话高消耗</span>' : '';
+
+        // 文件标签
+        const touched = sess.lastTouchedFiles || [];
+        const filesShown = touched.slice(0, 3);
+        const extraCount = touched.length - filesShown.length;
+
+        const filesHtml = filesShown.map(f => `<span class="file-chip" title="${escapeHtml(f)}"><code>${escapeHtml(f)}</code></span>`).join('') +
+          (extraCount > 0 ? `<span class="file-chip">+${extraCount}</span>` : '');
+
+        // 驱逐按钮与行内确认
+        const isConfirming = ui.isEvictingSessionId === sess.sessionId;
+        const actionHtml = isConfirming
+          ? `
+            <div class="evict-confirm-group">
+              <span style="color:var(--color-danger);">确定驱逐?</span>
+              <button class="btn-evict-yes" data-sess="${escapeHtml(sess.sessionId)}">确定</button>
+              <button class="btn-evict-no">取消</button>
+            </div>
+          `
+          : `
+            <button class="btn-evict" data-sess="${escapeHtml(sess.sessionId)}">
+              🧹 驱逐重置
+            </button>
+          `;
+
+        card.innerHTML = `
+          <div class="session-header-row">
+            <span class="session-id-text" title="${escapeHtml(sess.sessionId)}">🆔 ${escapeHtml(sess.sessionId)}</span>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <span class="badge badge-turn-count">Turn ${sess.turnCount || 1}</span>
+              ${longBadge}
+            </div>
+          </div>
+          <div class="session-files-row">
+            ${filesHtml || '<span style="color:var(--text-muted); font-size:10px;">无触碰文件</span>'}
+          </div>
+          <div style="display:flex; justify-content:flex-end; margin-top:2px;">
+            ${actionHtml}
+          </div>
+        `;
+
+        fragment.appendChild(card);
+      });
+
+      el.sessionsScrollList.appendChild(fragment);
+
+      // 绑定驱逐按钮事件
+      el.sessionsScrollList.querySelectorAll('.btn-evict').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          ui.isEvictingSessionId = btn.dataset.sess;
+          renderSessions();
+        });
+      });
+
+      el.sessionsScrollList.querySelectorAll('.btn-evict-yes').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const sessId = btn.dataset.sess;
+          ui.isEvictingSessionId = null;
+          showToast(`正在驱逐会话 ${sessId}...`, 'info');
+          const res = await apiPost(apiUrl('api/sessions/evict'), { sessionId: sessId });
+          if (res.ok) {
+            showToast(`会话 ${sessId} 已驱逐成功`, 'success');
+            // 乐观剔除
+            state.sessions = state.sessions.filter(s => s.sessionId !== sessId);
+            renderSessions();
+          }
+        });
+      });
+
+      el.sessionsScrollList.querySelectorAll('.btn-evict-no').forEach(btn => {
+        btn.addEventListener('click', () => {
+          ui.isEvictingSessionId = null;
+          renderSessions();
+        });
+      });
+    }
+
+    // 渲染产物成果库
+    function renderArtifacts() {
+      const { artifacts } = state;
+      el.artifactsCountBadge.textContent = artifacts.length;
+
+      if (!artifacts || artifacts.length === 0) {
+        el.artifactsScrollList.innerHTML = '<div class="empty-placeholder">暂无产物成果</div>';
+        return;
+      }
+
+      el.artifactsScrollList.innerHTML = '';
+      const fragment = document.createDocumentFragment();
+
+      artifacts.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'artifact-item';
+        div.innerHTML = `
+          <span class="artifact-name" title="${escapeHtml(item.name)}">📄 ${escapeHtml(item.name)}</span>
+          <span class="artifact-meta">${formatBytes(item.bytes)} · ${formatTime(item.updatedAt)}</span>
+        `;
+        div.addEventListener('click', () => openArtifactDrawer(item));
+        fragment.appendChild(div);
+      });
+
+      el.artifactsScrollList.appendChild(fragment);
+    }
+
+    // 检验是否满足实时预览触发条件
+    function checkLivePreviewAvailability() {
+      let foundHtml = null;
+
+      // 检查当前工作区或会话中的 touchedFiles
+      for (const sess of state.sessions) {
+        if (sess.lastTouchedFiles) {
+          const f = sess.lastTouchedFiles.find(name => name.toLowerCase().endsWith('.html'));
+          if (f) {
+            foundHtml = f;
+            break;
+          }
+        }
+      }
+
+      if (!foundHtml && state.activeTurn) {
+        const steps = state.activeTurn.steps || [];
+        for (const s of steps) {
+          if (s.summary && s.summary.includes('.html')) {
+            const m = s.summary.match(/[\w./\\-]+\.html/i);
+            if (m) {
+              foundHtml = m[0];
+              break;
+            }
+          }
+        }
+      }
+
+      if (foundHtml) {
+        ui.previewRelativePath = foundHtml;
+        el.btnPreviewTrigger.style.display = 'inline-flex';
+      } else {
+        el.btnPreviewTrigger.style.display = 'none';
+      }
+    }
+
+    // 全量统一渲染入口
+    function renderAll() {
+      renderTopBar();
+      renderStepper();
+      renderActiveTurnCard();
+      renderStepsTimeline();
+      renderHistoryView();
+      renderPolicy();
+      renderSessions();
+      renderArtifacts();
+      checkLivePreviewAvailability();
+    }
+
+    // -----------------------------------------------------------------
+    // 5. 产物抽屉面板逻辑
+    // -----------------------------------------------------------------
+    async function openArtifactDrawer(artifact) {
+      el.drawerFilename.textContent = artifact.name || '未命名产物';
+      el.drawerContent.innerHTML = '<div class="empty-placeholder">正在提取产物正文...</div>';
+      el.drawerOverlay.classList.add('visible');
+      el.artifactDrawer.classList.add('visible');
+
+      try {
+        const url = apiUrl(`api/artifact?conversationId=${encodeURIComponent(artifact.conversationId || '')}&file=${encodeURIComponent(artifact.name || '')}`);
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`获取失败 HTTP ${res.status}`);
+        const content = await res.text();
+        el.drawerContent.innerHTML = renderMarkdown(content);
+      } catch (err) {
+        el.drawerContent.innerHTML = `<div class="empty-placeholder" style="color:var(--color-danger);">读取失败: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function closeArtifactDrawer() {
+      el.drawerOverlay.classList.remove('visible');
+      el.artifactDrawer.classList.remove('visible');
+    }
+
+    // -----------------------------------------------------------------
+    // 6. 实时预览分屏逻辑
+    // -----------------------------------------------------------------
+    function openPreviewSplitPanel(relPath) {
+      ui.previewVisible = true;
+      ui.previewRelativePath = relPath || ui.previewRelativePath || 'index.html';
+      el.previewTitle.innerHTML = `<span>👁️ 实时预览: <code>${escapeHtml(ui.previewRelativePath)}</code></span>`;
+      el.previewSplitPanel.classList.add('visible');
+      reloadPreviewIframe();
+    }
+
+    function closePreviewSplitPanel() {
+      ui.previewVisible = false;
+      el.previewSplitPanel.classList.remove('visible');
+    }
+
+    function reloadPreviewIframe() {
+      if (!ui.previewRelativePath) return;
+      const cleanPath = ui.previewRelativePath.replace(/^[/\\]+/, '');
+      el.previewIframe.src = apiUrl(`api/workspace-preview/${cleanPath}?_t=${Date.now()}`);
+    }
+
+    // 预览分屏拖拽宽度调整
+    let isResizingPreview = false;
+    el.previewResizer.addEventListener('mousedown', (e) => {
+      isResizingPreview = true;
+      document.body.style.cursor = 'col-resize';
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isResizingPreview) return;
+      const newWidth = window.innerWidth - e.clientX;
+      const minW = 320;
+      const maxW = window.innerWidth * 0.8;
+      if (newWidth >= minW && newWidth <= maxW) {
+        el.previewSplitPanel.style.width = `${newWidth}px`;
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isResizingPreview) {
+        isResizingPreview = false;
+        document.body.style.cursor = '';
+      }
+    });
+
+    // -----------------------------------------------------------------
+    // 7. 用户交互事件绑定
+    // -----------------------------------------------------------------
+
+    // 重新扫描桌面端
+    el.btnRescan.addEventListener('click', async () => {
+      el.btnRescan.disabled = true;
+      const origText = el.btnRescan.textContent;
+      el.btnRescan.textContent = '扫描中…';
+      try {
+        const res = await apiPost(apiUrl('api/control/rescan'), {});
+        if (res.ok) {
+          showToast('桌面端扫描完成', 'success');
+          await fetchState();
+        }
+      } finally {
+        el.btnRescan.disabled = false;
+        el.btnRescan.textContent = origText;
+      }
+    });
+
+    // 跳过冷却 Pacing
+    el.btnSkipPacing.addEventListener('click', async () => {
+      el.btnSkipPacing.disabled = true;
+      const res = await apiPost(apiUrl('api/control/skip-pacing'), {});
+      el.btnSkipPacing.disabled = false;
+      if (res.ok) {
+        showToast('已跳过本次拟人冷却', 'success');
+      }
+    });
+
+    // 人工熔断 Abort
+    el.btnAbortTurn.addEventListener('click', async () => {
+      el.btnAbortTurn.disabled = true;
+      const res = await apiPost(apiUrl('api/control/abort'), { reason: 'manual abort from dashboard' });
+      el.btnAbortTurn.disabled = false;
+      if (res.ok) {
+        showToast('已下达人工熔断指令', 'warning');
+      }
+    });
+
+    // 主舞台 Tab 切换
+    el.tabCurrent.addEventListener('click', () => switchTab('current'));
+    el.tabHistory.addEventListener('click', () => switchTab('history'));
+
+    // 打开预览按钮
+    el.btnPreviewTrigger.addEventListener('click', () => {
+      openPreviewSplitPanel(ui.previewRelativePath);
+    });
+    el.btnRefreshPreview.addEventListener('click', reloadPreviewIframe);
+    el.btnClosePreview.addEventListener('click', closePreviewSplitPanel);
+
+    // 抽屉关闭
+    el.btnCloseDrawer.addEventListener('click', closeArtifactDrawer);
+    el.drawerOverlay.addEventListener('click', closeArtifactDrawer);
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeArtifactDrawer();
+      }
+    });
+
+    // 步骤滚动监听（智能判断是否暂停自动滚动）
+    el.timelineScrollContainer.addEventListener('scroll', () => {
+      const container = el.timelineScrollContainer;
+      const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      if (distFromBottom > 30) {
+        ui.autoScrollPaused = true;
+      } else {
+        ui.autoScrollPaused = false;
+        el.scrollDownNotice.style.display = 'none';
+      }
+    });
+
+    el.scrollDownNotice.addEventListener('click', () => {
+      ui.autoScrollPaused = false;
+      el.timelineScrollContainer.scrollTop = el.timelineScrollContainer.scrollHeight;
+      el.scrollDownNotice.style.display = 'none';
+    });
+
+    // 策略热更新处理
+    async function updateRuntimeConfigField(patch) {
+      // 乐观保存旧状态以便回滚
+      const oldConfig = { ...state.runtimeConfig };
+      Object.assign(state.runtimeConfig, patch);
+      renderPolicy();
+
+      const res = await apiPost(apiUrl('api/control/config'), patch);
+      if (!res.ok) {
+        // 回滚
+        state.runtimeConfig = oldConfig;
+        renderPolicy();
+      } else {
+        showToast('策略配置热更新成功', 'success');
+      }
+    }
+
+    // Thinking Level 点击
+    el.segThinkingLevel.querySelectorAll('.seg-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = btn.dataset.value;
+        if (state.runtimeConfig.thinkingLevel === val) return;
+        updateRuntimeConfigField({ thinkingLevel: val });
+      });
+    });
+
+    // Task Mode 点击
+    el.segTaskMode.querySelectorAll('.seg-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = btn.dataset.value;
+        if (state.runtimeConfig.taskMode === val) return;
+        updateRuntimeConfigField({ taskMode: val });
+      });
+    });
+
+    // 安全开关点击
+    function bindSwitchToggle(btn, fieldName) {
+      btn.addEventListener('click', () => {
+        const curVal = btn.getAttribute('aria-checked') === 'true';
+        updateRuntimeConfigField({ [fieldName]: !curVal });
+      });
+    }
+    bindSwitchToggle(el.switchKillswitch, 'realtimeKillSwitch');
+    bindSwitchToggle(el.switchFailEscape, 'failOnEscape');
+    bindSwitchToggle(el.switchOutside, 'allowOutsideWorkspace');
+    bindSwitchToggle(el.switchPacing, 'pacingEnabled');
+
+    // -----------------------------------------------------------------
+    // 8. EventSource (SSE) 实时通道建立与事件分发
+    // -----------------------------------------------------------------
+    function initEventSource() {
+      const es = new EventSource(apiUrl('api/events'));
+
+      es.onopen = () => {
+        el.sseDisconnectBadge.style.display = 'none';
+        fetchState();
+      };
+
+      es.onerror = () => {
+        // 静默不弹 toast 刷屏，在顶部展示提示
+        el.sseDisconnectBadge.style.display = 'inline-flex';
+      };
+
+      // 绑定各个指定事件
+      es.addEventListener('state:snapshot', (e) => {
+        try {
+          const snapshot = JSON.parse(e.data);
+          Object.assign(state, snapshot);
+          renderAll();
+        } catch (_) {}
+      });
+
+      es.addEventListener('bridge:status', (e) => {
+        try {
+          state.bridge = JSON.parse(e.data);
+          renderTopBar();
+        } catch (_) {}
+      });
+
+      es.addEventListener('quota:updated', (e) => {
+        try {
+          state.quota = JSON.parse(e.data);
+          renderTopBar();
+        } catch (_) {}
+      });
+
+      es.addEventListener('lifecycle:change', (e) => {
+        try {
+          const payload = JSON.parse(e.data);
+          Object.assign(state.lifecycle, payload);
+          ui.lastLifecycleUpdateTimestamp = Date.now();
+          renderStepper();
+          renderHistoryView();
+        } catch (_) {}
+      });
+
+      es.addEventListener('turn:started', (e) => {
+        try {
+          state.activeTurn = JSON.parse(e.data);
+          if (!state.activeTurn.steps) state.activeTurn.steps = [];
+          ui.autoScrollPaused = false;
+          renderActiveTurnCard();
+          renderStepsTimeline();
+          checkLivePreviewAvailability();
+        } catch (_) {}
+      });
+
+      es.addEventListener('turn:step', (e) => {
+        try {
+          const { step } = JSON.parse(e.data);
+          if (step && state.activeTurn) {
+            state.activeTurn.steps.push(step);
+            appendSingleStep(step);
+          }
+        } catch (_) {}
+      });
+
+      es.addEventListener('turn:aborted', (e) => {
+        try {
+          const payload = JSON.parse(e.data);
+          if (state.activeTurn) {
+            state.activeTurn.aborted = payload;
+          }
+          showToast(`当前回合已被熔断: ${payload.reason || ''}`, 'warning');
+          renderActiveTurnCard();
+        } catch (_) {}
+      });
+
+      es.addEventListener('turn:settled', (e) => {
+        try {
+          const payload = JSON.parse(e.data);
+          if (state.activeTurn) {
+            const settledTurn = {
+              ...state.activeTurn,
+              ...payload,
+              settledAt: Date.now()
+            };
+            state.recentTurns.unshift(settledTurn);
+            if (state.recentTurns.length > 10) {
+              state.recentTurns.pop();
+            }
+            state.activeTurn = null;
+          }
+          renderActiveTurnCard();
+          renderStepsTimeline();
+          renderHistoryView();
+
+          // 自动刷新 iframe
+          if (ui.previewVisible && el.chkAutoReload.checked) {
+            reloadPreviewIframe();
+          }
+        } catch (_) {}
+      });
+
+      es.addEventListener('sessions:updated', (e) => {
+        try {
+          const payload = JSON.parse(e.data);
+          state.sessions = payload.sessions || [];
+          renderSessions();
+          checkLivePreviewAvailability();
+        } catch (_) {}
+      });
+
+      es.addEventListener('artifacts:updated', (e) => {
+        try {
+          const payload = JSON.parse(e.data);
+          state.artifacts = payload.artifacts || [];
+          renderArtifacts();
+        } catch (_) {}
+      });
+
+      es.addEventListener('config:updated', (e) => {
+        try {
+          const payload = JSON.parse(e.data);
+          state.runtimeConfig = payload.runtimeConfig || payload;
+          renderPolicy();
+          renderTopBar();
+        } catch (_) {}
+      });
+
+      es.addEventListener('ping', () => {
+        // 心跳忽略
+      });
+    }
+
+    // -----------------------------------------------------------------
+    // 9. 启动入口
+    // -----------------------------------------------------------------
+    async function init() {
+      // 启动本地时间差定时器（100ms 频率流畅更新本地秒数）
+      ui.lifecycleTicker = setInterval(updateLifecycleTick, 100);
+
+      // 初次拉取状态全量快照
+      await fetchState();
+
+      // 连接 SSE 实时事件流
+      initEventSource();
+    }
+
+    init();
+
+    // Custom properties do not cross an iframe boundary, so when this page is
+    // embedded by the dsh panel (same origin, `window.parent` reachable) copy the
+    // host's alias tokens onto <html>. Standalone, this is a no-op and the
+    // fallbacks in `:root` keep the original dark palette.
+    (function adoptHostTheme() {
+      const TOKENS = ['--dsw-alias-bg-base', '--dsw-alias-bg-layer-1', '--dsw-alias-bg-layer-2',
+        '--dsw-alias-bg-overlay', '--dsw-alias-border-l1', '--dsw-alias-border-l2',
+        '--dsw-alias-brand-primary', '--dsw-alias-label-primary', '--dsw-alias-label-secondary',
+        '--dsw-alias-state-error-primary', '--dsw-alias-state-idle-primary',
+        '--dsw-alias-state-success-primary', '--dsw-alias-state-warn-primary']
+      function sync() {
+        try {
+          if (window.parent === window || !window.parent.document) return
+          const hostBody = window.parent.document.body
+          if (!hostBody) return
+          const hostStyle = window.parent.getComputedStyle(hostBody)
+          const root = document.documentElement
+          for (const name of TOKENS) {
+            const value = hostStyle.getPropertyValue(name).trim()
+            if (value !== '') root.style.setProperty(name, value)
+            else root.style.removeProperty(name)
+          }
+          const dark = hostBody.hasAttribute('data-ds-dark-theme')
+          root.setAttribute('data-dsh-embedded', '')
+          root.style.colorScheme = dark ? 'dark' : 'light'
+          root.style.backgroundColor = hostStyle.getPropertyValue('--dsw-alias-bg-base').trim() || ''
+        } catch { /* cross-origin or detached: keep the standalone palette */ }
+      }
+      sync()
+      try {
+        if (window.parent !== window && window.parent.document && window.parent.MutationObserver) {
+          new MutationObserver(sync).observe(window.parent.document.body, {
+            attributes: true, attributeFilter: ['data-ds-dark-theme', 'class', 'style'],
+          })
+        }
+      } catch { /* ignore */ }
+    })()
+  </script>
+</body>
+</html>

@@ -2,3 +2,4 @@
 .npmignore
 sessions.json
 *.log
+docs/screenshots/
