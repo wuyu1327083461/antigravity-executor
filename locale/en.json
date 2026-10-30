@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Antigravity Executor",
-    "description": "Delegate coding tasks to the signed-in Antigravity desktop agent. Works in the dsh session directory, with a configurable thinking tier, RPC-driven turn settlement that returns within seconds, untruncated long reports, live account quota with 5h and weekly guards plus a cached read, a destructive-vs-escape kill switch that is armed by default, human-like inter-turn pacing, dead-session self-heal, and artifact inlining that keeps the planner context small."
+    "description": "Delegate coding tasks to the signed-in Antigravity desktop agent. Adds an adaptive task mode that picks a surgical engineering persona or a creative visual-density persona per call (with a Pass-1 review gate for 3D and front-end work), so switching task types never needs a config edit. Works in the dsh session directory with a configurable thinking tier, RPC-driven settlement that returns within seconds, an in-process serial queue for parallel tool calls, untruncated long reports, live account quota with 5h and weekly guards plus a 24h floor, a destructive-vs-escape kill switch that cuts .git metadata writes unconditionally, human-like inter-turn pacing, dead-session self-heal with context recovery, a 60s hanging-command circuit breaker, and a git snapshot inlined into every result."
   }
 }

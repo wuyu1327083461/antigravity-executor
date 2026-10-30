@@ -90,9 +90,38 @@
         # a command never exits and would otherwise burn the whole budget.
         hangingCommandWarnSeconds: 45
 
+        # --- v0.6.0: adaptive task mode (REQ-01) -----------------------
+        # auto = decide per call from task_spec: creative for 3D / Three.js /
+        # WebGL / Canvas / shader / landing page / game / UI design work,
+        # surgical (minimal-change engineering) for everything else. This is why
+        # switching from "fix a bug" to "build a 3D scene" needs no file edit:
+        # the persona changes with the task, not with the profile.
+        # Pin it to `surgical` or `creative` only for a profile that does exactly
+        # one kind of work.
+        taskMode: auto
+        # Show the resolved mode in every result (observability only).
+        includeTaskModeHint: true
+
+        # --- v0.6.0: hanging-command circuit breaker (REQ-04) ----------
+        # v0.5.x could only WARN after the fact, so a stray `npm run dev` burned
+        # the whole maxSeconds budget and came back as a bare timeout. Now a
+        # command that looks like a dev server / watch runner is cut as soon as
+        # it has produced no new step for this long. Set 0 to fall back to
+        # warn-only. Only fires while realtimeKillSwitch is true.
+        hangingCommandTimeoutSeconds: 60
+
+        # --- v0.6.0: git snapshot in the result (REQ-07) ---------------
+        # Runs `git status --porcelain` and `git diff --stat` locally (3s timeout
+        # each) and inlines them, so the planner no longer needs an extra tool
+        # round after every delegation. It also powers the "worktree is clean but
+        # the executor claims it edited files" notice.
+        includeGitSummary: true
+
         # --- human-like pacing (v0.5.0) --------------------------------
         # Never delays a turn's result; only tops up the gap before the NEXT
         # delegation, with jitter so consecutive gaps are not metronome-regular.
+        # v0.6.0: the in-process mutex queue guarantees parallel tool calls cannot
+        # pierce this gap (all of them would otherwise read the same timestamp).
         pacing:
           enabled: true
           minGapSeconds: 15

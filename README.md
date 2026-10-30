@@ -41,9 +41,65 @@ in-process — no MCP server, no sidecar, no external dependencies, no API key.
 | --- | --- | --- |
 | `task_spec` | yes | Target files, required logic, edge cases, interface contracts, acceptance criteria |
 | `workspace_dir` | no | Absolute path the executor may touch. **Omit to use the current dsh session's working directory** (recommended). A path outside that directory is refused unless the config sets `allowOutsideWorkspace: true`. |
+| `task_mode` | no | `surgical` \| `creative`. **Omit in normal use** — the mode is auto-detected from `task_spec` (see [0.6.0](#what-changed-in-060)). Passing it only overrides that detection. |
 | `thinking_level` | no | Per-call override: `minimal` / `low` → `flash_lite`, `medium` → `flash`, `high` / `extra_high` → `pro`. Omit to use the configured default. Ignored entirely when `allowOverride: false`. A low-quota account may be auto-downgraded from `pro` to `flash`. |
 | `session_id` | no | Stable label for a feature thread; reuse it to continue the same conversation |
 | `max_seconds` | no | Wall-clock budget (default from config, 900) |
+
+## What changed in 0.6.0
+
+0.5.0 fixed the second-order problems in 0.4.0's defaults. Running it on real
+work then exposed two different kinds of gap: one **quality** problem that made
+the plugin worse than a single model at visual work, and a set of **third-order
+edges** where a guard existed but could not actually fire.
+
+The headline is `task_mode`. Nothing else in this release changes what the
+plugin does for ordinary engineering work.
+
+| Area | 0.5.1 behaviour | 0.6.0 |
+| --- | --- | --- |
+| **3D / front-end output** | One conservative "minimal diff" preamble for everything: a Three.js scene came back as a handful of plain boxes, syntax-clean and useless | **Adaptive persona** — `creative` is auto-selected from `task_spec` and appends a visual-density block; `surgical` keeps the disciplined engineering persona |
+| **Turn-1 acceptance** | The planner saw "no syntax errors", accepted, and shipped the matchbox | A **Pass-1 creative gate** is appended to the first creative result, telling the planner exactly what to inspect and to re-dispatch on the **same** `session_id` if the scene is skeletal |
+| **Parallel tool calls** | Two delegations in one reply both read the same `lastTurnFinishedAt`: both pierced the pacing gap, and both edited the workspace at once (`.git/index.lock`) | **In-process FIFO mutex** around the whole delegation; the pacing delay is measured against a timestamp no sibling call can move |
+| **Dead-session eviction** | Turn 2+ incremental instructions were re-sent to a blank conversation, which then guessed | Eviction now prepends a **context recovery banner** (last touched files + previous task head) and the result says `session_evicted_and_recreated: true` |
+| **Hanging commands** | Recognised statically and *warned about* — but the turn still burned the full 900 s and returned a bare timeout | A **per-tick clock** cuts the turn at `hangingCommandTimeoutSeconds` (60) with `Aborted after 60s: hanging/interactive command detected (…)` |
+| **`.git` metadata writes** | Inside the workspace, so `write-outside` never fired; with the shipped `failOnEscape: false` the audit was blind to them | `**/.git/hooks/**` and `**/.git/config` writes are classed **destructive** and cut unconditionally — a hostile hook would execute on the planner's very next `git status` |
+| **Weekly quota, last 24 h** | The weekly guard was skipped entirely, so a 0 % week still sent `pro` and got `RESOURCE_EXHAUSTED` | The 15 % reserve is released but the **5 % floor still holds**: `pro -> flash (weekly quota floor)` |
+| **Result shape** | The planner had to spend an extra tool round on `git status` / `git diff --stat` after every delegation | Both are **inlined in the result**, plus a `[Notice: Git working tree shows no modified or untracked files.]` line when the executor claims edits it did not make |
+
+### Adaptive task mode (REQ-01)
+
+Two personas, one prompt. The hard constraints — absolute paths, workspace
+containment, no dev servers — are shared. What differs is the scope rule and an
+appended block.
+
+`creative` sends this to the executor:
+
+```
+[CREATIVE & VISUAL DENSITY MODE]
+- Do NOT build a minimal MVP or use bare single-primitive placeholders (e.g. plain colored boxes as furniture, shelves, or buildings).
+- Maximize visual richness and code completeness: build composite multi-part geometries, use InstancedMesh for repeating props/products, generate procedural CanvasTextures for signage/labels/tiles, and configure layered lighting (ambient + directional/spot lights with shadows, emissive materials, and post-processing where applicable).
+- Prioritize visual polish, material realism, and interactive details over code brevity.
+```
+
+Detection is a keyword match on `task_spec` (`three.js`, `webgl`, `canvas`,
+`3d`, `shader`, `pbr`, `orbitcontrols`, `landing page`, `ui design`, `game`,
+`animation`, plus `三维` / `3D场景` / `便利店` / `着色器` / `粒子` / `动画` /
+`小游戏` / `界面设计` / `视觉效果`). "帮我修个 Bug" → `surgical`, one pass, fast
+return. "帮我做个 HTML 3D 便利店场景" → `creative`, density block, and the gate
+below on **turn 1 only**:
+
+```
+[Supervisor Creative Gate — Pass 1 Completed]
+This is Pass 1 of a creative/visual task. Before accepting, inspect the code for visual density:
+1. Are objects built from composite geometries and procedural textures (CanvasTexture / PBR materials), or just bare placeholder primitives?
+2. Are interior props, lighting atmosphere, and interactive controls fully fleshed out?
+If the scene is skeletal or under-detailed, DO NOT finish — immediately call `delegate_coding_task` again with the SAME `session_id` and `task_mode: "creative"` to execute Pass 2 (detail & prop expansion).
+```
+
+The gate is emitted once per conversation on purpose: re-emitting it on turn 2
+would nag the planner into unlimited expansion rounds, and every extra round
+re-sends a longer history against a shared quota pool.
 
 ## What changed in 0.5.0
 
@@ -485,9 +541,60 @@ compliance with anyone else's terms.
 | --- | --- | --- |
 | `task_spec` | 是 | 目标文件、所需逻辑、边界条件、接口契约、验收标准 |
 | `workspace_dir` | 否 | 执行器可触碰的绝对路径。**省略则使用当前 dsh 会话的工作目录**（推荐）。位于该目录之外的路径会被拒绝，除非配置里设了 `allowOutsideWorkspace: true`。 |
+| `task_mode` | 否 | `surgical` \| `creative`。**正常使用请省略**——插件会按 `task_spec` 自动判定（见 [0.6.0](#060-更新内容)）。传入只是覆盖自动判定。 |
 | `thinking_level` | 否 | 单次覆盖：`minimal` / `low` → `flash_lite`，`medium` → `flash`，`high` / `extra_high` → `pro`。省略则用配置默认档位；当 `allowOverride: false` 时该参数被完全忽略。额度不足时可能被自动从 `pro` 降级到 `flash`。 |
 | `session_id` | 否 | 功能线程的稳定标签；复用同一个值即可在返工轮次里延续同一会话 |
 | `max_seconds` | 否 | 本次委派的墙钟预算（默认取配置值 900） |
+
+## 0.6.0 更新内容
+
+0.5.0 修好了 0.4.0 默认值上的二阶问题。把 0.5.x 真正用起来之后，又暴露出两类不同的缺口：
+一类是**质量**问题——做 3D/前端视觉任务时，这个插件的产出比单模型直出还差；
+另一类是**三阶边界**——护栏写好了，但在真实路径上根本触发不了。
+
+这次的主角是 `task_mode`。除此之外，本版本不改变插件处理普通工程任务时的任何行为。
+
+| 方面 | 0.5.1 行为 | 0.6.0 |
+| --- | --- | --- |
+| **3D / 前端产出** | 所有任务共用一套保守的「最小化改动」前缀：一个 Three.js 场景回来是一堆平涂方块，语法全对但完全不能用 | **自适应人格**：按 `task_spec` 自动判定为 `creative` 并追加高密度视觉规范；`surgical` 保留原有严谨工程前缀 |
+| **第 1 轮验收** | 主模型看到「没有语法错误」就放行，于是火柴盒就这么交付了 | 第 1 轮 creative 结果末尾追加 **Pass-1 视觉门禁**，明确告诉主模型该检查哪些点、并在场景骨架化时用**同一个 `session_id`** 续轮 |
+| **并发工具调用** | 同一条回复里的两次委派读到同一个 `lastTurnFinishedAt`：同时击穿 pacing 冷却，并同时改同一工作区（`.git/index.lock`） | 插件内**串行互斥队列**包住整次委派；冷却间隔基于一个任何兄弟调用都无法推动的时间戳 |
+| **失效会话重建** | 第 2 轮以后的增量指令会被发给一个空白会话，它只能瞎猜 | 重建时自动注入**上下文恢复头**（上一轮触碰的文件 + 任务摘要），报告里标 `session_evicted_and_recreated: true` |
+| **常驻命令** | 能识别、能**事后告警**——但回合照样烧满 900 秒，只拿回一个裸 timeout | 新增**每拍时钟**，在 `hangingCommandTimeoutSeconds`（60 秒）处主动掐断：`Aborted after 60s: hanging/interactive command detected (…)` |
+| **`.git` 元数据写入** | 它在工作区**内部**，`write-outside` 永远抓不到；而默认 `failOnEscape: false` 让审计对它完全无感 | `**/.git/hooks/**` 与 `**/.git/config` 的写入归入**破坏性**并无条件熔断——恶意 hook 会在主模型下一次 `git status` 时执行 |
+| **周配额最后 24h** | 周闸被整个跳过，于是周配额 0% 时仍会强发 `pro`，拿回 `RESOURCE_EXHAUSTED` | 放开 15% 储备但**守住 5% 底线**：`pro -> flash (weekly quota floor)` |
+| **返回结构** | 每次委派后主模型都要额外花一轮工具调用跑 `git status` / `git diff --stat` | 两者**直接内联在报告里**；当执行器声称改了但工作区干净时，附加 `[Notice: Git working tree shows no modified or untracked files.]` |
+
+### 自适应任务模式（REQ-01）
+
+两套人格，同一份 prompt。硬性约束（绝对路径、工作区围栏、禁止常驻进程）共用，
+不同的只是范围规则与追加内容。
+
+`creative` 会把这套规范发给执行器：
+
+```
+[CREATIVE & VISUAL DENSITY MODE]
+- Do NOT build a minimal MVP or use bare single-primitive placeholders (e.g. plain colored boxes as furniture, shelves, or buildings).
+- Maximize visual richness and code completeness: build composite multi-part geometries, use InstancedMesh for repeating props/products, generate procedural CanvasTextures for signage/labels/tiles, and configure layered lighting (ambient + directional/spot lights with shadows, emissive materials, and post-processing where applicable).
+- Prioritize visual polish, material realism, and interactive details over code brevity.
+```
+
+判定是对 `task_spec` 做关键词匹配（`three.js`、`webgl`、`canvas`、`3d`、`shader`、`pbr`、
+`orbitcontrols`、`landing page`、`ui design`、`game`、`animation`，以及 `三维`、`3D场景`、
+`便利店`、`着色器`、`粒子`、`动画`、`小游戏`、`界面设计`、`视觉效果`）。
+「帮我修个 Bug」→ `surgical`，一轮快返；「帮我做个 HTML 3D 便利店场景」→ `creative`，
+带上密度规范，并在**仅第 1 轮**追加下面这段门禁：
+
+```
+[Supervisor Creative Gate — Pass 1 Completed]
+This is Pass 1 of a creative/visual task. Before accepting, inspect the code for visual density:
+1. Are objects built from composite geometries and procedural textures (CanvasTexture / PBR materials), or just bare placeholder primitives?
+2. Are interior props, lighting atmosphere, and interactive controls fully fleshed out?
+If the scene is skeletal or under-detailed, DO NOT finish — immediately call `delegate_coding_task` again with the SAME `session_id` and `task_mode: "creative"` to execute Pass 2 (detail & prop expansion).
+```
+
+门禁每个会话只发一次是刻意设计：第 2 轮还发，就等于逼主模型无限续轮，
+而每多一轮都要携带更长的历史，烧的是同一个共享配额池。
 
 ## 0.5.0 更新内容
 

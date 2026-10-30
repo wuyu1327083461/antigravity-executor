@@ -2,6 +2,13 @@
 
 本文件是并行开发的唯一接口基准。**任何模块改动都要先改这里**，否则其他模块会编译期/运行期对不上。
 
+> **v0.6.0 基线**：v0.5.1（commit `7f7ddab` + killed-step 渲染修复）。
+> v0.6.0 的目标是「自适应 + 三阶边界加固」：REQ-01 自适应任务模式（§3.11）、
+> REQ-02 串行互斥队列（§3.12）、REQ-03 死会话重建上下文补偿（§3.6）、
+> REQ-04 挂起命令短超时熔断（§3.4 + §5.0）、REQ-05 git 元数据写入熔断（§3.9 + §5.3）、
+> REQ-06 周配额 < 24h 退守底线（§3.5）、REQ-07 结算内联 git 快照（§3.7）。
+> **零配置升级**是硬要求：旧 profile 不新增任何一个键也必须能跑，且 7 个 REQ 全部生效。
+
 ## 0. 全局约束
 
 - Node ≥ 22.19.0，纯 ESM，**零新增运行时依赖**（不得引入 schemastery、undici 之外的包；只用 `node:*` 内置 + 全局 `fetch`）。
@@ -132,10 +139,20 @@ export function transcriptPaths(conversationId): { dir, compact, full }
  * @param {AbortSignal} [o.signal]
  * @param {(ev:{kind:'step'|'progress'|'idle', step?, text?, trace?}) => void} [o.onEvent]
  * @param {(step) => ({block?: boolean, reason?: string})} [o.onStep]   REQ-04 增量审计钩子
+ * @param {(ctx: {steps, elapsedMs}) => ({block?, reason?}|undefined)} [o.onTick]  v0.6.0 每轮询一次
  * @returns {Promise<{ answer, trace, steps, settlement: 'rpc-idle'|'quiet-window'|'timeout',
  *                     elapsedMs, terminationReason?: string, killed?: {step, reason} }>}
  */
 export async function waitForTurn(o)
+
+/** 纯函数：这一拍是否该因「挂起命令」熔断（v0.6.0 / REQ-04）。 */
+export function evaluateHangingTimeout({ hanging, newestStepIndex, newestStepAt, now, timeoutMs })
+// → {block: false} | {block: true, reason, stepIndex, waitedMs}
+```
+
+**`onStep` 与 `onTick` 的区别（v0.6.0）**：`onStep` 只在**出现新 step**时触发，
+而挂起命令的特征恰恰是「再也不产生新 step」——所以它永远等不到第二拍。
+`onTick` 每个轮询拍都触发，是唯一能让 60s 熔断生效的时钟。
 ```
 
 判定顺序：
@@ -171,15 +188,27 @@ export function createQuotaCache()
 
 /** 供 check_environment 渲染的文本块（含倒计时，如 `pro: 65%, resets in 1h 42m`） */
 export function renderQuota(quota, { now = Date.now() } = {}): string
+
+/** 周限额的有效水位与「是否已进入重置前窗口」（v0.6.0 / REQ-06）。
+ *  @returns {{threshold: number, hoursUntilReset: number|null, nearReset: boolean}} */
+export function weeklyGuardLevel(settings, { resetAt, anchor } = {})
 ```
 
-降级规则（v0.5.0 两道闸，各自只作用于 `pro`）：
+降级规则（v0.6.0：两道闸，各自只作用于 `pro`）：
 
 1. **5h 闸**：`min(tier 行 pro 值, gemini-5h 桶值) < proMinFraction` → 降 `flash`，
    `downgraded = 'pro -> flash (low quota)'`。
-2. **周限额闸**：`gemini-weekly < weeklyProMinFraction` **且**距重置 > `weeklyReserveHours`
-   → 降 `flash`，`downgraded = 'pro -> flash (weekly quota reserve)'`。
+2. **周限额闸**：用 `weeklyGuardLevel()` 算出的有效阈值，`gemini-weekly < threshold` → 降 `flash`。
+   - 距重置 ≥ `weeklyReserveHours`（默认 24h）：阈值 `weeklyProMinFraction`（0.15），
+     `downgraded = 'pro -> flash (weekly quota reserve)'`。
+   - 距重置 < 24h：**放开** 15% 储备、**退守** `proMinFraction`（0.05）底线，
+     `downgraded = 'pro -> flash (weekly quota floor)'`。
+   - `resetTime` 读不到时按「很远」处理（用 15%）——读不到不能反过来**削弱**保护。
 3. 无法识别（无 tier 行也无桶）→ **不降级**；`flash` 无额度 → 保持 `pro` 并在 `note` 说明。
+
+**为什么 < 24h 要退守而不是彻底跳过**：0.5.0 在最后 24h 直接把周闸关掉，于是
+周配额真的见底（`< 5%` 甚至 `0%`）时仍会强发 `pro`，拿回一个 `RESOURCE_EXHAUSTED`。
+放开的是「为最后一天预留的 15%」，不是「连 5% 底线一起放弃」。
 
 配额缓存只在「读取完整 + 未过期 + 未逼近 `proMinFraction + 0.05` 警戒线」时复用；
 `check_environment` 始终强制实时读取。
@@ -200,12 +229,24 @@ export function nextTurnCount(record, conversationId, turns?): number
 export function longSessionHint(record, threshold = 8): string | undefined
 ```
 
-记录形状：`{ session_id, conversation_id, workspace_dir, tier, turn_count?, created_at, updated_at }`，
+记录形状：`{ session_id, conversation_id, workspace_dir, tier, turn_count?, last_touched_files?, last_task_head?, created_at, updated_at }`，
 key = `` `${workspace}::${sessionId}` ``。写入必须原子（写 `*.tmp` 后 `rename`），失败不致命。
 
 `turn_count` 只在调用方传入 `turns` 或旧记录已带该字段时出现，保证 0.4.0 形状的记录
 可以原样往返（向后兼容）。`remove()` 用于**失效会话自愈**：复用持久化的
 `session_id` 却在 ~0.1s 内收到 dead-turn 错误时，剔除该映射并自动开新会话。
+
+**v0.6.0 新增两个字段（REQ-03）**，同样遵守「不传就不出现」的向后兼容纪律：
+
+- `last_touched_files`：工作区内被读/写过的文件，去重，最多 10 条，来自审计器的 `touchedFiles`。
+- `last_task_head`：上一轮 `task_spec` 的前 200 字符。
+
+`conversation_id` 变化时这两个字段**不继承**（新线程从干净状态开始，理由与 `turn_count` 相同）。
+
+```js
+/** 失效会话重建时拼在 prompt 头部的上下文补补偿横幅；无内容时 undefined。 */
+export function contextRecoveryBanner(record, { sessionId } = {}): string | undefined
+```
 
 ### 3.7 `lib/artifacts.js` — Git 死锁预检 + Brain 产物回收（REQ-07）
 
@@ -221,6 +262,15 @@ export async function collectBrainArtifacts(conversationId, {
   sinceMs = 0, maxFiles = 8, summaryChars = 600,
   maxInlineChars = 4000, oversizeHeadChars = 2000,
 } = {})
+
+// --- v0.6.0（REQ-07）--------------------------------------------------------
+
+/** 只读地采集工作区的 git 状态快照；永不抛错、永不挂起。
+ *  @returns {Promise<{isRepo, status, diffStat, changed, untracked, error?}>} */
+export async function readGitSummary(workspaceDir, { timeoutMs = 3000, maxLines = 40, run } = {})
+
+/** 快照的中文渲染块；非 git 仓库返回 undefined。 */
+export function renderGitSummary(summary): string | undefined
 ```
 
 ### 3.8 `lib/platform.js` — 跨平台 shell 前置（REQ-09）
@@ -258,9 +308,34 @@ export function parseHangingCommand(command)
 
 /** 一个 step 里的全部常驻命令命中（v0.5.0）。@returns {Array<{index, command, id, why}>} */
 export function findHangingCommands(step)
+
+// --- v0.6.0（REQ-05 / REQ-03 / REQ-07）--------------------------------------
+
+/** 是否落在工作区内的 Git 元数据上（`.git/hooks/**`、`.git/config`）。 */
+export function isGitMetadataPath(target): boolean
+
+/** 命令里可见的写入目标（含 `>` / `Out-File` / 各种写动词的参数）。 */
+export function extractWriteTargets(command): string[]
+
+/** 该工具名是否是原生文件写工具。 */
+export function isWriteTool(name): boolean
+
+/** 原生写工具参数里的目标路径；没有则 undefined。 */
+export function writeToolPath(args): string | undefined
 ```
 
 `auditTurn(steps, sinceIndex, workspace)` 用 `createAuditor` 重新实现，保证两种入口结论一致。
+
+**v0.6.0 的 `report()` 增补两个字段**（其余字段与形状不变）：
+
+```js
+report() // → { ...v0.5.0 的五个字段,
+         //     touchedFiles: string[],  // 工作区内被读/写过的绝对路径，去重，按首次触碰排序
+         //     fileWrites: number }     // 文件写操作次数（原生写工具 + 写形命令，每条命令记一次）
+```
+
+`touchedFiles` 供「失效会话重建」时把上下文补回去（§3.6）；
+`fileWrites` 供「声称改了但其实没动」的幻觉预警（§3.7）。
 
 ### 3.10 `lib/pacing.js` — 拟人冷却（v0.5.0）
 
@@ -277,6 +352,60 @@ export function renderPacing(cfg, state?, now?): string
 
 **只延迟「下一轮的开始」，绝不拖慢本轮结果**。状态在内存中（不落盘）：dsh 重启后
 上一轮间隔本就不可知。
+
+### 3.11 `lib/task-mode.js` — 自适应任务模式（v0.6.0 / REQ-01）
+
+```js
+export const TASK_MODES = ['surgical', 'creative']
+export const DEFAULT_TASK_MODE = 'surgical'
+export const CREATIVE_TASK_RE = /…/i
+
+/** 显式参数 > 正则兜底。@returns {{mode, source: 'call'|'auto'|'invalid', note?}} */
+export function resolveTaskMode({ task_mode, task_spec } = {})
+
+/** creative 人格前缀（逐字固定，产品要求）。 */
+export function creativePreamble(): string
+
+/** 第 1 轮视觉复审门禁；不满足条件时 undefined。 */
+export function creativeReviewGate({ mode, turnCount } = {}): string | undefined
+
+/** 报告里的一行。 */
+export function renderTaskMode(decision): string
+```
+
+两种人格的差别只在**注入给执行器的 Preamble** 与**第 1 轮的门禁提示**：
+
+| mode | Preamble | 第 1 轮返回后 |
+| --- | --- | --- |
+| `surgical` | 现有「最小化改动」工程前缀 | 无附加提示，快返 |
+| `creative` | 工程前缀 + `[CREATIVE & VISUAL DENSITY MODE]` | 追加 `[Supervisor Creative Gate — Pass 1 Completed]` |
+
+`creativeReviewGate` 只在 `mode === 'creative'` 且 `Number(turnCount) === 1` 时返回文本，
+其余一律 `undefined`——它是一条**一次性**的督导指令，第 2 轮之后不能再劝人继续扩建，
+否则主模型会无限续轮、烧配额。
+
+### 3.12 `lib/queue.js` — 插件内串行互斥队列（v0.6.0 / REQ-02）
+
+```js
+/** 严格 FIFO，同一时刻只跑一个委派。 */
+export function createSerialQueue({ now } = {})
+// 返回 { run(fn): Promise<any>,
+//        status(): {running, queued, completed, currentStartedAt?, lastFinishedAt?},
+//        reset() }
+
+/** check_environment 的一行。 */
+export function renderQueue(state): string
+```
+
+**为什么要锁**：主模型可以在同一条回复里并发发起多个 `delegate_coding_task`
+（Parallel Tool Calls）。它们会在同一毫秒读到相同的 `lastTurnFinishedAt`，
+于是 `pacing` 冷却与抖动被同时穿透；两个 Antigravity 会话同时写同一工作区
+还会造成文件踩踏与 `.git/index.lock`。
+
+锁的粒度是**进程内全局**（整条 Bridge），不是按 `workspace_dir`：并发写不同
+工作区同样会一起击穿 pacing，而 pacing 状态本来就是全局的。
+
+释放放在 `finally`，失败的任务不能把队列焊死；拒绝只回到它自己的 `run()` 调用方。
 
 
 ## 4. 规范化 step 形状
@@ -339,9 +468,27 @@ pacing:                          # 拟人冷却（v0.5.0）
   minGapSeconds: 15
   jitterMinSeconds: 6
   jitterMaxSeconds: 15
+
+# --- v0.6.0 新增（全部可选，缺省即用下列默认值）------------------------------
+taskMode: auto                   # auto | surgical | creative（auto = 按 task_spec 正则判定）
+hangingCommandTimeoutSeconds: 60  # 疑似常驻命令超过这么久就主动掐断（0 = 只告警不掐断）
+includeGitSummary: true          # 结算时自动附带 git status / diff --stat 快照
+includeTaskModeHint: true        # 返回报告里显示判定出的 task_mode（排查用）
 ```
 
 新增键必须给默认值，且**不破坏**旧 profile（旧键缺省即用默认值）。
+
+### 5.0 v0.6.0 配置键语义
+
+| 键 | 作用 | 关掉会怎样 |
+| --- | --- | --- |
+| `taskMode` | 强制覆盖自动判定。`auto`（默认）按 `task_spec` 正则判定，`surgical`/`creative` 直接钉死 | 设成 `creative` 会让修 Bug 也走高密度人格，别这么用 |
+| `hangingCommandTimeoutSeconds` | 疑似常驻命令超过这么久、且期间无新 step → 主动 `CancelCascadeInvocation` | 设 `0` 退回 v0.5.1 的「只告警，等满 `maxSeconds`」 |
+| `includeGitSummary` | 结算时在本地跑 `git status --porcelain` / `git diff --stat`（各 3s 超时） | 关掉后主模型又得自己跑一轮 git，且丢掉「假改」预警 |
+| `includeTaskModeHint` | 报告里多一行「这次按哪种人格跑的」 | 关掉只影响可观测性，不影响行为 |
+
+`task_mode` **不是**配置键的替代品：工具参数逐次生效（一次 3D 任务、下一次修 Bug 不必改任何文件），
+配置键只用于「这个 profile 永远只做某类活」的极端场景。
 
 ### 5.1 熔断粒度（v0.5.0，重要语义变更）
 
@@ -380,15 +527,33 @@ Claude and GPT models / 3p-weekly (weekly)
 周限额（`gemini-weekly`）用更高的 `weeklyProMinFraction` 单独保护：5h 桶用光最多
 等几小时，周限额用光可能等好几天。
 
+### 5.3 熔断粒度（v0.6.0 增补 REQ-05）
+
+`classifyFinding` 新增第三类破坏性 finding：
+
+| kind | 含义 | 归类 |
+| --- | --- | --- |
+| `dangerous:*` | 命中高危命令规则表 | `destructive` |
+| `destructive_git_metadata_write` | 写到了 `<ws>/.git/hooks/**` 或 `<ws>/.git/config` | **`destructive`** |
+| `cd-outside` / `write-outside` | 工作区越界 | `escape` |
+
+**为什么 git 元数据算破坏性而不是越界**：它在**工作区内部**，所以
+`write-outside` 永远抓不到它，而 `failOnEscape: false` 又恰恰是默认配置——
+于是 0.5.x 对这条路径完全无感。危险在于它不是「改了个文件」，而是
+**让下一轮 `git status` 执行任意命令**：主模型每次验收都会跑 git，等于把
+执行器的代码直接搬进主模型进程。这类写入必须与 `reg delete` 同级无条件熔断。
+
 
 ## 6. 写作用域（避免撞车）
 
 | 负责人 | 文件 |
 | --- | --- |
-| Lead | `lib/config-schema.js`、`lib/index.js`、`lib/integration.test.js`、`README.md`、`cordis.patch.yml`、`package.json`、`locale/*.json`、`CONTRACT.md` |
-| teammate-rpc | `lib/rpc.js`、`lib/discovery.js` |
-| teammate-audit | `lib/audit.js`、`lib/audit.test.js` |
-| teammate-turn | `lib/transcript.js`、`lib/turn.js` |
-| teammate-support | `lib/quota.js`、`lib/sessions.js`、`lib/artifacts.js`、`lib/platform.js`、`lib/pacing.js` |
+| Lead | `lib/config-schema.js`、`lib/index.js`、`lib/integration.test.js`、`README.md`、`cordis.patch.yml`、`package.json`、`locale/*.json`、`CONTRACT.md`、`skills/supervisor-workflow/SKILL.md` |
+| teammate-task-mode-queue | `lib/task-mode.js`、`lib/task-mode.test.js`、`lib/queue.js`、`lib/queue.test.js`（v0.6.0） |
+| teammate-audit-gitmeta | `lib/audit.js`、`lib/audit.test.js`（v0.6.0） |
+| teammate-turn-hang-tick | `lib/turn.js`、`lib/turn.test.js`（v0.6.0） |
+| teammate-quota-sessions-git | `lib/quota.js`、`lib/quota.test.js`、`lib/sessions.js`、`lib/sessions.test.js`、`lib/artifacts.js`、`lib/artifacts.test.js`（v0.6.0） |
+| teammate-rpc | `lib/rpc.js`、`lib/discovery.js`（v0.6.0 未改动） |
+| teammate-support | `lib/platform.js`、`lib/pacing.js`（v0.6.0 未改动） |
 
 各自文件内的自测脚本放 `lib/<name>.test.js`（自己命名，不与他人的 test 文件重名）。
