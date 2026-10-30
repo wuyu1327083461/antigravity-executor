@@ -2,3 +2,5 @@ node_modules/
 sessions.json
 *.log
 .DS_Store
+# Build output from `npm pack` — a publish artifact, not source.
+*.tgz
