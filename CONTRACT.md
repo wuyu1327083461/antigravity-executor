@@ -557,3 +557,185 @@ Claude and GPT models / 3p-weekly (weekly)
 | teammate-support | `lib/platform.js`、`lib/pacing.js`（v0.6.0 未改动） |
 
 各自文件内的自测脚本放 `lib/<name>.test.js`（自己命名，不与他人的 test 文件重名）。
+
+
+---
+
+# v0.8.0 迭代契约增量（General Complex Task Orchestration Edition）
+
+> **基线**：v0.7.0（Commit `b8880b8`）。需求来源：`F:\work\需求文档.md`。
+> **纪律不变**：任何模块改动先改这里；零配置升级（旧 profile 不加键也能跑）；零新增运行时依赖。
+
+## 7.1 写作用域（v0.8.0 并行分工）
+
+| 负责人 | 文件 |
+| --- | --- |
+| Lead | `CONTRACT.md`、`lib/config-schema.js`、`lib/index.js`、`lib/ui-server.mjs`、`ui/index.html`、`client.js`、`cordis.patch.yml`、`package.json`、`locale/*.json`、`README.md`、`skills/supervisor-workflow/SKILL.md`、`lib/integration.test.js` |
+| teammate-commands | **新建** `lib/commands.js`、`lib/commands.test.js` |
+| teammate-escalation | **新建** `lib/escalation.js`、`lib/escalation.test.js` |
+| teammate-snapshot | **新建** `lib/snapshot.js`、`lib/snapshot.test.js` |
+| teammate-session-brief | **新建** `lib/session-brief.js`、`lib/session-brief.test.mjs` |
+| teammate-task-mode | `lib/task-mode.js`、`lib/task-mode.test.js`（v0.8.0 三元模式 + 粘性） |
+| teammate-sessions | `lib/sessions.js`、`lib/sessions.test.js`（v0.8.0 结转字段） |
+| teammate-telemetry | `lib/telemetry.mjs`、`lib/telemetry.test.mjs`（v0.8.0 快照/命令/配额增量） |
+
+**新建模块必须是纯模块**：只 import `node:*` 内置，不 import 本包其它 lib 文件（测试才能独立跑）。
+
+## 7.2 新增配置键（`lib/config-schema.js` 仍是唯一权威）
+
+```yaml
+# --- v0.8.0（全部可选，缺省即用下列默认值，旧 profile 不新增任何键即可跑）----
+autoEscalateOnRetry: true          # REQ-01：返工轮次 / 上一轮失败 / creative 模式自动 flash -> pro
+retryEscalationLevel: high         # 升档目标档位（high 或 extra_high）
+preTurnGitSnapshot: true           # REQ-03：回合前 git stash create 零副作用快照，支持一键回滚
+autoRolloverLongSessions: false    # REQ-04：超长会话是否自动带记忆结转（false = 仅提示 + UI 按钮）
+documentMaxSummaryChars: 6000      # REQ-05：document 模式回显文档结构摘要的字符上限
+```
+
+语义：新增键**只影响新增能力**，任一键缺省时行为与 v0.7.0 等价（`autoRolloverLongSessions` 默认 false 尤其重要：自动换会话会丢上下文，必须用户显式开启或点 UI 按钮）。
+
+## 7.3 `lib/commands.js`（REQ-02 / UI-REQ-01）
+
+```js
+/** 从规范化 steps（含 raw）提取所有 run_command 执行结果。 */
+export function extractRunCommands(steps): Array<{
+  stepIndex: number,
+  command: string,
+  cwd: string|null,
+  exitCode: number|null,      // 轨迹里没有就是 null（不是 0！）
+  outputTail: string,         // 最后 20 行，硬上限 1500 字符
+  failed: boolean,            // exitCode 是有限数且 !== 0
+}>
+
+/** 是否是「验收类」命令（测试/构建/lint/类型检查）。 */
+export function isVerificationCommand(command): boolean
+
+/** 汇总：{total, failed, lastVerification, verificationFailed} */
+export function summarizeCommands(commands)
+
+/** 报告块 `[Command Execution Summary]`，无命令时返回 undefined。 */
+export function renderCommandSummary(commands, { maxCommands = 12 } = {})  // → string|undefined
+
+/** 假成功拦截条：最后一条验收命令非零退出时返回预警文本，否则 undefined。 */
+export function verificationWarning(commands)
+```
+
+判定口径（**必须照做**）：
+- `exitCode` 来源优先级：`step.raw.runCommand.exitCode` → `step.raw.metadata.commandResult.exitCode` → `step.raw.taskDetails.exitCode` → 正则自最后一条输出里的 `exit code N`。**读不到就是 `null`，绝不猜 0**。
+- `command` 来源：`step.raw.metadata.toolCall.argumentsJson`（字符串二次 `JSON.parse`）里的 `CommandLine` → `step.tool_calls[].args.CommandLine` → `step.raw.runCommand.commandLine`。
+- `outputTail` 来源：`step.raw.runCommand.combinedOutput.full` → `step.raw.runCommand.combinedOutput` → `step.content`。取最后 20 行后若超 1500 字符，从**头部**截断（保留尾部堆栈）。
+- 渲染样例（逐字）：
+
+```text
+[Command Execution Summary]
+  ✅ Exit 0: npm run build
+  ❌ Exit 1: npx vitest run
+     cwd  : F:\work\app
+     tail :
+       AssertionError [ERR_ASSERTION]: expected 200 to equal 500
+```
+
+- 预警条（逐字，插在报告**最顶部**）：
+
+```text
+[⚠️ Verification Warning: The last executed command exited with code 1. Inspect the error output below before accepting.]
+```
+
+## 7.4 `lib/escalation.js`（REQ-01）
+
+```js
+export const RETRY_SIGNAL_RE = /\b(fix|failing|failed|error|broken|regression|retry|still\s+not)\b|报错|失败|未通过|没改对|返工|修复/i
+
+/** 触发条件 A 的「返工信号」判定。 */
+export function detectRetrySignal({ taskSpec, lastTurnFailed, turnCount, reusedSession }): boolean
+
+/** 返回 {escalate, from, to, reason}，不满足升档条件返回 {escalate:false}。 */
+export function shouldEscalate({ explicitLevel, configuredLevel, effectiveMode, session, taskSpec, config }): {
+  escalate: boolean,
+  from?: string,            // 'flash'
+  to?: string,              // 'pro'
+  reason?: 'retry'|'complexity',
+  detail?: string,          // 报告里的一行原因
+}
+
+/** UI 状态栏 + 报告行：`escalated: flash -> pro (retry/complexity escalation)` */
+export function renderEscalation(decision): string|undefined
+```
+
+规则（**必须照做**）：
+1. 调用方显式传了 `thinking_level` → **不升档**（用户/主模型意志优先）。
+2. `effectiveMode === 'creative'` → 升档，`reason: 'complexity'`。
+3. `reusedSession === true`（`turnCount >= 1`）且（`session.lastTurnFailed === true` 或 `taskSpec` 命中 `RETRY_SIGNAL_RE`）→ 升档，`reason: 'retry'`。
+4. 目标档位 = `config.retryEscalationLevel`（默认 `high`），且**只升不降**：已 ≥ 目标则不升。
+5. **升档后排在前面的仍是 `quotaFallback`**：本模块只回答「想不想升」，配额守卫在 `index.js` 之后照样可以把它降回来。
+
+## 7.5 `lib/snapshot.js`（REQ-03）
+
+```js
+/** 回合前零副作用快照。@returns {isRepo, snapshotSha, headSha, preUntracked, error?} */
+export async function capturePreTurnSnapshot(workspaceDir, { run, timeoutMs } = {}): Promise<{
+  isRepo: boolean, snapshotSha: string|null, headSha: string|null,
+  preUntracked: string[], error?: string
+}>
+
+/** 回滚一个回合。@returns {ok, restoredFiles, removedUntracked, skipped, error?} */
+export async function rollbackTurn(workspaceDir, snapshot, { run, touchedFiles, removeUntracked = true } = {})
+
+/** 报告 / UI 渲染。 */
+export function renderSnapshot(snapshot): string|undefined
+export function renderRollback(result): string
+```
+
+实现约束（**必须照做**）：
+- `run(args)` 形如 `run(['-C', ws, 'status'])`，返回 `{code, stdout, stderr}`；默认实现用 `execFile('git', ...)`，**永不 throw**。
+- 采集顺序：`rev-parse --is-inside-work-tree`（非 0 → `isRepo:false`，**不报错**）→ `rev-parse HEAD`（空仓库可失败 → `headSha:null`）→ `stash create`（工作区干净时输出空串，此时 `snapshotSha = headSha`）→ `ls-files --others --exclude-standard` 记 `preUntracked`。
+- `stash create` **只写 `.git/objects` 悬空对象**：绝不碰工作区、暂存区、`stash list`。
+- `rollbackTurn`：对 `touchedFiles` 中**受版本控制**的文件执行 `checkout <snapshotSha> -- <file>`；对「当前未跟踪 **且** 不在 `preUntracked` 里」的文件执行删除（`removeUntracked:false` 时只报告不删）。`touchedFiles` 为空时退化为整树 `checkout <sha> -- .`（仍不碰 preUntracked）。
+- `snapshotSha` 为 null（空仓库）时：跳过 checkout，只做未跟踪清理，并在 `skipped` 说明。
+- **只允许改工作区内的路径**：所有目标路径必须 `resolve` 后仍在 `workspaceDir` 下，否则跳过并记入 `skipped`。
+
+## 7.6 `lib/session-brief.js`（REQ-04）
+
+```js
+/** 结转摘要。@returns {{cumulativeTouchedFiles: string[], lastPlanHead: string, previousTurnCount: number}} */
+export function buildRolloverBrief(record, { extraFiles = [], planText } = {})
+
+/** 新会话首轮注入的头部横幅；无内容返回 undefined。 */
+export function renderRolloverPrompt(brief): string|undefined
+
+/** 是否已到长会话结转水位。 */
+export function isLongSession(record, { longSessionTurns = 8 } = {}): boolean
+```
+
+口径：`cumulativeTouchedFiles` 去重、**保持首次触碰顺序**、最多 **15** 条、转成工作区相对路径斜杠形式；`lastPlanHead` 取 `planText` 前 **600** 字符（空则退回 `record.last_task_head`）；`previousTurnCount` 取 `record.turn_count`。
+
+## 7.7 `lib/telemetry.mjs` 增量（UI-REQ-01/02/03/04）
+
+- `normalizeStep(step, verdict)` **新增字段** `command`：`undefined` 或 `{command, cwd, exitCode, outputTail, failed}`（形状见 §7.3，UI 终端 Tab 直接渲染，不再解析）。
+- `startTurn(info)` 新增可选 `escalation: {from, to, reason}`、`rolloverBrief: {previousTurnCount, files}`、`snapshotSha`。
+- `settleTurn(turnId, result)` 新增可选 `commands`（§7.3 汇总）、`burn`（`{fraction, label}`）、`changedFiles`（`[{path, added, removed}]`）、`touchedFiles`、`rolledBack: false`。
+- **新增** `recordBurn({deltaFraction, cumulativeFraction, window})`：写 `quota.burn`，`deltaFraction` 是「本轮消耗」，供回合卡片徽章。
+- **新增** `markRolledBack(turnId, {restoredFiles, removedUntracked})`：把环形缓冲里该回合标 `rolledBack:true` 并 emit `turn:rolled-back`。
+- **新增** `markRolledOver(sessionId, {toConversationId, brief})`：emit `session:rollover` 并更新该行 `turnCount`。
+- `snapshot()` 新增 `quota.burn`、`recentTurns[].{snapshotSha,rolledBack,commands,changedFiles,burn,escalation}`。
+
+## 7.8 `lib/ui-server.mjs` 新增路由（§4.1）
+
+| 方法 & 路径 | 入参 | 响应 |
+| --- | --- | --- |
+| `GET /api/git-diff` | `?turnId=&file=` | `{file, diffText, stats:{added,removed}}`；**必须**用 `resolveInsideWorkspace` 校验 `file`，越界 403 |
+| `POST /api/control/rollback` | `{turnId?}` | `{ok, turnId, restoredFiles, removedUntracked}` |
+| `POST /api/sessions/rollover` | `{sessionId}` | `{ok, sessionId, briefSummary}` |
+| `POST /api/control/config/save` | `{}` | `{ok, savedPath}` |
+
+全部沿用现成约束：写操作走 loopback Origin 校验
+（403）、`readJsonBody` 的 256KB 上限、未知路由 404。
+
+## 7.9 验收口径（Lead 会逐条跑）
+
+1. 默认 `medium` 下第 1 轮 → `flash`；第 2 轮修复/上一轮非零退出 → `pro`，报告出现 `escalated: flash -> pro (...)`。
+2. 回合内测试失败 → 报告顶部出现 `[⚠️ Verification Warning: ...]`，且 `[Command Execution Summary]` 里有 `❌ Exit 1` 与堆栈尾部。
+3. 「已有未提交改动 + 本轮改 3 文件新建 1 文件」→ 回滚后这 4 个文件回到盘前状态，**盘前已有改动完好**。
+4. 8 轮后结转 → 新 `conversation_id`、`turn_count` 归零、首轮 prompt 带前 8 轮文件列表与进度摘要。
+5. `document` 模式被 `.xlsx/.pptx/.docx/.pdf/.csv` 命中；同 `session_id` 第 2 轮不带 `task_mode` 时**继承**首轮模式。
+6. War Room：4 Tab 检视器、时间轴过滤胶囊 + 连续只读折叠、单步手风琴、回滚/结转按钮、本轮消耗徽章、`@container` 窄屏折叠、历史锁定横幅。
