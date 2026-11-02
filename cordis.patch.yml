@@ -125,6 +125,35 @@
         # the executor claims it edited files" notice.
         includeGitSummary: true
 
+        # --- v0.8.0: complex-task orchestration (REQ-01 / REQ-03 / REQ-04) ---
+        # A rework round (the previous turn failed, or the instruction reads like
+        # "fix it") runs on pro instead of repeating the same failure on flash.
+        # A call that passes thinking_level explicitly is never escalated, and the
+        # quota guard below still gets the final say: escalation cannot burn the
+        # weekly reserve that guard exists to protect.
+        autoEscalateOnRetry: true
+        retryEscalationLevel: high
+
+        # Record a zero-side-effect git snapshot before each turn via
+        # `git stash create` (it only writes a dangling object into .git/objects;
+        # the working tree, the index and `stash list` are never touched).
+        # This is what makes the dashboard's [⏪ 回滚本轮修改] button precise enough
+        # to use on a dirty worktree: it restores exactly the files the turn wrote
+        # and leaves every pre-existing uncommitted change alone.
+        preTurnGitSnapshot: true
+
+        # Automatic session rollover once a session passes longSessionTurns:
+        # a fresh conversation starts with a brief (files touched + progress
+        # digest) instead of re-reading the whole project. Default FALSE because a
+        # rollover abandons in-thread context; the dashboard offers the button,
+        # and this switch lets a profile opt into doing it automatically.
+        autoRolloverLongSessions: false
+
+        # Character cap for the document-structure summary echoed by a `document`-mode
+        # turn. An .xlsx/.pptx/.docx has no meaningful git diff, so this text is the
+        # only reviewable artifact the planner gets.
+        documentMaxSummaryChars: 6000
+
         # --- human-like pacing (v0.5.0) --------------------------------
         # Never delays a turn's result; only tops up the gap before the NEXT
         # delegation, with jitter so consecutive gaps are not metronome-regular.

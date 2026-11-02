@@ -536,6 +536,144 @@ outside its own directory (`sessions.json` lives there and is gitignored).
   must not be quit). No API key is involved.
 - Node.js ≥ 22.19.0 (whatever dsh itself needs)
 
+## v0.8.0: general complex-task orchestration
+
+v0.7.0 made a turn watchable. v0.8.0 makes it **survivable** on work that is not
+a web page: cross-file refactors, stubborn bugs, test-driven work and office
+documents. Five engine changes and five interface changes, all of them reachable
+without editing a config file.
+
+### The engine
+
+**Retry and complexity auto-escalation (`REQ-01`).** The default `medium` tier
+runs on `flash`, which is the right trade for first-pass work and the wrong one
+for a rework round: the planner finds the first attempt did not fix the bug,
+re-dispatches the same hard problem to the same cheap tier, and waits for a
+different answer. The half-finished state of a turn is now recorded as
+`last_turn_failed`, and a second call on the same `session_id` automatically runs
+on `pro` when the previous turn failed, when the instruction reads like a rework
+("still not", "报错", "返工", …), or when the turn is `creative`. The report says
+so outright:
+
+```text
+escalated: flash -> pro (retry escalation)
+```
+
+Two deliberate limits. A call that passes `thinking_level` explicitly is never
+escalated — that is a decision, not an oversight. And escalation is computed
+*before* the quota guard, which still gets the final word: being told a task is
+hard is not permission to burn the weekly reserve.
+
+**Structured command results and fake-success interception (`REQ-02`).** The
+report used to list which commands ran and never whether they succeeded, so a
+delegation whose test suite failed came back reading like a clean finish. Both
+`exitCode` and the tail of the output are now extracted from the trajectory:
+
+```text
+[Command Execution Summary]
+  ✅ Exit 0: npm run build
+  ❌ Exit 1: npx vitest run
+     cwd  : F:\work\app
+     tail :
+       AssertionError [ERR_ASSERTION]: expected 200 to equal 500
+```
+
+When the last verification command exited non-zero, a banner is inserted **above
+the executor's own message**, where it cannot be talked over:
+
+```text
+[⚠️ Verification Warning: The last executed command exited with code 1. Inspect the error output below before accepting.]
+```
+
+One implementation detail that matters more than it looks: an exit code that is
+*missing* from the trajectory is reported as unknown, never guessed as `0`.
+Fabricating a zero would reproduce the exact lie this feature exists to catch.
+
+**Zero-side-effect pre-turn snapshots and precise rollback (`REQ-03`).** Before
+each turn the plugin runs `git stash create`, which writes a dangling object into
+`.git/objects` and touches nothing else — not the working tree, not the index, not
+`stash list`. A turn that gets cut off mid-refactor can therefore be rolled back
+from the dashboard's `[⏪ 回滚本轮修改]` button:
+
+- the files **this turn** modified are restored from that object;
+- every uncommitted change that existed *before* the turn is left exactly alone;
+- files the turn created are removed, and only if they were not already
+  untracked before the turn started.
+
+That precision is the whole feature. A `git checkout -- .` would also revert work
+the user did by hand on files the turn never touched, which is a data-loss bug
+wearing a safety feature's clothes.
+
+**Memory-preserving session rollover (`REQ-04`).** Past `longSessionTurns` (8),
+each round re-sends an ever larger history and burns quota proportionally. Simply
+switching `session_id` throws away everything the thread learned. A rollover
+instead opens a fresh conversation carrying a brief:
+
+```text
+[Rollover Brief] 这是一个带记忆结转的新会话：…
+turn count       : 前一段会话已完成 8 轮（本会话从第 1 轮重新计数）
+cumulative files : 累计修改 3 个文件，按首次触碰顺序（最多 15 条）
+   1. src/auth.js
+   2. src/login.js
+   3. test/auth.test.js
+progress digest  : 为登录流程补齐回归测试
+hard instruction : 直接从上面这些相关文件切入——先读它们再动手，不要重新全盘扫描项目…
+[End of Rollover Brief]
+```
+
+Automatic rollover is **off by default** (`autoRolloverLongSessions: false`):
+it abandons in-thread context, so it is offered as a button and left as a choice.
+
+**Three-way task mode with session stickiness (`REQ-05`).** `document` joins
+`surgical` and `creative`. It exists because an `.xlsx`/`.pptx`/`.docx`/`.pdf`/`.csv`
+deliverable has two properties the other two personas get wrong: writing it by
+hand at byte level produces a corrupt file, and reviewing it with `git diff`
+shows nothing but "binary files differ". So the persona mandates script-based
+read/write (openpyxl / python-pptx / python-docx / pypdf / reportlab / csv), and
+requires a printed structure summary that stands in for the missing diff.
+
+Modes are detected per call, and the mode a session establishes on its first turn
+is persisted: a later turn whose instruction reads like plain engineering inherits
+the session's mode instead of silently degrading. An explicit `task_mode` always
+wins, which is also the way out of stickiness.
+
+### The interface
+
+The right-hand pane is now a **four-tab Universal Inspector**: `📊 代码变更 Diff`
+(per-file pills with `+added / -removed`, unified diff rendered red/green),
+`💻 终端输出` (every `run_command` with its exit-code badge and output tail),
+`📋 任务产物` (`task.md` checklist progress bar plus the brain artifacts) and
+`👁️ 网页预览` (with `about:blank` recycling before reload to stop WebGL context
+leaks, and an inline runtime-error capture bar). The tab matching what the turn
+actually produced is selected automatically.
+
+The timeline gained **filter pills** (`全部 / ✏️ 文件变更 / 💻 命令执行 / ⚠️ 审计告警`
+with live counts), **automatic folding** of runs of three or more read-only
+exploration steps into one collapsed row, and a **per-step accordion** that shows
+the untruncated arguments, the virtual-cwd transition and the step's result.
+
+Settled turns carry a **burn delta** (`🔋 本轮消耗: -1.3% (5h)`) and sessions carry
+a cumulative one; policy changes that are only in memory are marked
+`● 内存临时生效中` with `[💾 保存至配置文件]` and `[↺ 恢复默认]` next to them.
+
+Finally, the layout is **container-responsive**: below 960px the policy form
+collapses into three dropdown pills and the timeline gets the full width, and
+replaying a historical turn **locks the view** — a new turn starting in the
+background raises a pill instead of yanking the page away from what you were
+reading.
+
+### New REST routes
+
+| Route | Purpose |
+| --- | --- |
+| `GET /api/git-diff?turnId=&file=` | Unified diff text and stats for one file (traversal-guarded) |
+| `POST /api/control/rollback` | Restore a turn's files to its pre-turn snapshot |
+| `POST /api/sessions/rollover` | Rebuild a long session with a memory brief |
+| `POST /api/control/config/save` | Write the dashboard's hot-control overlay into `cordis.patch.yml` |
+
+All four keep the existing rules: mutating calls require a loopback `Origin`, and
+a route whose hook is not wired answers `501` rather than failing obscurely.
+
 ## Known limitations
 
 **There is no kernel-enforced filesystem sandbox.** `agentapi` creates
@@ -1067,6 +1205,113 @@ dsh plugin --profile <profile> remove antigravity-executor
 - **Antigravity 桌面端正在运行且已登录**（最小化即可 —— 但不能退出）。不涉及任何
   API Key。
 - Node.js ≥ 22.19.0（与 dsh 自身的需求一致）
+
+## v0.8.0：通用复杂工程任务编排
+
+v0.7.0 让一轮执行「看得见」，v0.8.0 让它「扛得住」——面向的不再只是网页，而是跨文件重构、
+疑难 Bug、测试驱动开发与办公文档。引擎五项、界面五项，全部零配置可用。
+
+### 引擎
+
+**返工与疑难任务自动升档（`REQ-01`）。** 默认 `medium` 档跑 `flash`，这对首轮常规任务是正确取舍，
+对返工轮次恰恰是错的：主模型发现首轮没改对，把同样的难题再派给同样的廉价档位，等一个不同的结果。
+现在一回合的健康度会被记成 `last_turn_failed`，同一 `session_id` 的第 2 次调用会在下列情况自动跑 `pro`：
+上一轮失败、指令像返工（「还是不行」「报错」「返工」…）、或本轮是 `creative`。报告会直说：
+
+```text
+escalated: flash -> pro (retry escalation)
+```
+
+两条刻意的边界。显式传了 `thinking_level` 的调用**永不升档**——那是决定，不是疏忽。
+升档的计算发生在配额守卫**之前**，守卫仍有最终话语权：被告知任务很难，不等于获准烧掉周配额储备。
+
+**命令结果结构化与假成功拦截（`REQ-02`）。** 报告过去只列执行了哪些命令，从不列它们是否成功，
+于是一次测试全挂的委派也会「读起来像顺利完工」。现在 `exitCode` 与输出尾部都会被提取：
+
+```text
+[Command Execution Summary]
+  ✅ Exit 0: npm run build
+  ❌ Exit 1: npx vitest run
+     cwd  : F:\work\app
+     tail :
+       AssertionError [ERR_ASSERTION]: expected 200 to equal 500
+```
+
+最后一条验收命令非零退出时，预警条会插在**执行器自述正文的上方**，在那里它无法被花言巧语盖过：
+
+```text
+[⚠️ Verification Warning: The last executed command exited with code 1. Inspect the error output below before accepting.]
+```
+
+一个比看上去更重要的实现细节：轨迹里**读不到**退出码时报告为未知，**绝不猜成 `0`**。
+伪造一个零，正好复现了这个功能存在的全部理由。
+
+**回合前零副作用快照与精准回滚（`REQ-03`）。** 每轮开始前执行 `git stash create`，
+它只往 `.git/objects` 写一个悬空对象，其他一概不碰——不碰工作区、不碰暂存区、不碰 `stash list`。
+因此一个重构到一半被中断的回合，可以从驾驶舱的 `[⏪ 回滚本轮修改]` 按钮撤回：
+
+- **本轮**修改过的文件从那个对象还原；
+- 回合开始**之前**就存在的未提交改动，原样保留；
+- 本轮新建的文件被删除，且仅当它在回合开始前并不存在。
+
+这份精准就是整个功能。`git checkout -- .` 会连带回滚用户手工改的、本轮从未碰过的文件——
+那是一个穿着安全外衣的数据丢失 Bug。
+
+**长会话带记忆结转（`REQ-04`）。** 超过 `longSessionTurns`（8）后，每一轮都会重发越来越长的历史，
+配额消耗随之上升。直接换 `session_id` 会丢掉这条线程学到的一切。结转则是开一个全新的会话，
+并携带一份摘要：
+
+```text
+[Rollover Brief] 这是一个带记忆结转的新会话：…
+turn count       : 前一段会话已完成 8 轮（本会话从第 1 轮重新计数）
+cumulative files : 累计修改 3 个文件，按首次触碰顺序（最多 15 条）
+   1. src/auth.js
+   2. src/login.js
+   3. test/auth.test.js
+progress digest  : 为登录流程补齐回归测试
+hard instruction : 直接从上面这些相关文件切入——先读它们再动手，不要重新全盘扫描项目…
+[End of Rollover Brief]
+```
+
+自动结转**默认关闭**（`autoRolloverLongSessions: false`）：它会丢弃线程内上下文，
+所以以按钮形式提供，把选择权留给用户。
+
+**三元任务模式与会话粘性（`REQ-05`）。** `document` 加入 `surgical` 与 `creative`。
+它存在的理由有两条：`xlsx`/`pptx`/`docx`/`pdf`/`csv` 交付物如果用字节级手写方式生成会得到损坏文件，
+而用 `git diff` 验收只会看到「binary files differ」。于是这个模式强制脚本读写
+（openpyxl / python-pptx / python-docx / pypdf / reportlab / csv），
+并要求打印结构摘要来替代缺失的 diff。
+
+模式逐次判定，且会话首轮确立的模式会被持久化：后续某一轮指令读起来像普通工程活时，
+会继承该会话的模式而不是悄悄退化。显式 `task_mode` 永远优先，它也是脱离粘性的出路。
+
+### 界面
+
+右侧分屏升级为**四标签通用检视器**：`📊 代码变更 Diff`（文件胶囊带 `+added / -removed`，
+Unified Diff 红绿渲染）、`💻 终端输出`（每条 `run_command` 的命令、退出码徽章与输出尾部）、
+`📋 任务产物`（`task.md` 勾选进度条 + Brain 产物）、`👁️ 网页预览`
+（刷新前先置 `about:blank` 回收 WebGL 上下文，并内联捕获运行时异常）。
+会按回合实际产出自动选中对应标签。
+
+时间轴新增**过滤胶囊**（`全部 / ✏️ 文件变更 / 💻 命令执行 / ⚠️ 审计告警`，带实时计数）、
+连续 3 条以上只读探索步骤的**自动折叠**、以及**单步手风琴**（展开完整参数、Virtual CWD 变化与返回摘要）。
+
+已结算回合带**单轮消耗增量**（`🔋 本轮消耗: -1.3% (5h)`），会话列表带累计值；
+仅内存生效的策略改动会标 `● 内存临时生效中`，旁边提供 `[💾 保存至配置文件]` 与 `[↺ 恢复默认]`。
+
+最后，布局是**容器响应式**的：窄于 960px 时策略表单收成三枚下拉胶囊，时间轴拿到全宽；
+复盘历史回合时**锁定画面**——后台新起的回合只会浮出一条胶囊，不会把页面从你正在读的内容上拽走。
+
+### 新增 REST 接口
+
+| 路由 | 作用 |
+| --- | --- |
+| `GET /api/git-diff?turnId=&file=` | 单个文件（或全部改动）的 Unified Diff 与统计（带路径穿越防护） |
+| `POST /api/control/rollback` | 把某回合修改的文件还原至盘前快照 |
+| `POST /api/sessions/rollover` | 带记忆摘要重建长会话 |
+| `POST /api/control/config/save` | 把驾驶舱的热控覆盖写回 `cordis.patch.yml` |
+
+四条都沿用既有规则：写操作要求回环 `Origin`，未接线的路由返回 `501` 而不是给出难以定位的失败。
 
 ## 已知限制
 

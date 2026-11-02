@@ -75,6 +75,10 @@
       height: 100vh;
       overflow: hidden;
       position: relative;
+      /* UI-REQ-05：整页作为查询容器，dsh 内嵌中心列 < 960px 时由 @container
+         把右侧常驻 Policy Hot Controls 收拢成顶部紧凑下拉胶囊条 */
+      container-type: inline-size;
+      container-name: warroom;
     }
 
     /* =========================================================
@@ -1483,6 +1487,807 @@
       }
     }
 
+    /* =========================================================
+       v0.8.0（UI-REQ-01 ~ UI-REQ-05）新增样式
+       ========================================================= */
+
+    /* document 三元任务模式专属徽章（v0.8.0 REQ-05） */
+    .badge-mode-document {
+      background: var(--color-warning-subtle);
+      color: var(--color-warning);
+      border: 1px solid rgba(210, 153, 34, 0.35);
+    }
+
+    /* --- UI-REQ-04 配额 Burn Delta 徽章 ---------------------------- */
+    .burn-badge {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color-light);
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 600;
+    }
+    .burn-badge.hot {
+      background: var(--color-warning-subtle);
+      color: var(--color-warning);
+      border-color: rgba(210, 153, 34, 0.4);
+    }
+    .session-burn-line {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+    .session-burn-line.hot {
+      color: var(--color-warning);
+    }
+
+    /* --- UI-REQ-03 回合回滚 / 会话结转按钮 -------------------------- */
+    .turn-action-strip {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding-top: 2px;
+    }
+    .btn-rollback {
+      background: rgba(248, 81, 73, 0.12);
+      border: 1px solid rgba(248, 81, 73, 0.45);
+      color: #ff7b72;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s;
+    }
+    .btn-rollback:hover {
+      background: rgba(248, 81, 73, 0.22);
+    }
+    .btn-rollback:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .rollback-confirm-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10.5px;
+      color: var(--color-danger);
+    }
+    .btn-rollback-yes {
+      background: var(--color-danger);
+      border: none;
+      color: #ffffff;
+      padding: 3px 9px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 10.5px;
+      font-weight: 600;
+    }
+    .btn-rollback-no {
+      background: var(--border-color);
+      border: none;
+      color: var(--text-primary);
+      padding: 3px 9px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 10.5px;
+    }
+    .rolled-back-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-color-light);
+      border-radius: var(--radius-sm);
+      padding: 3px 9px;
+    }
+    .btn-rollover {
+      background: var(--color-warning-subtle);
+      border: 1px solid rgba(210, 153, 34, 0.5);
+      color: var(--color-warning);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s;
+    }
+    .btn-rollover:hover {
+      background: rgba(210, 153, 34, 0.28);
+    }
+    .btn-rollover:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    /* --- UI-REQ-02 时间轴过滤胶囊 -------------------------------- */
+    .timeline-header {
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .timeline-filter-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 5px;
+      padding: 6px 8px 0;
+      flex-shrink: 0;
+    }
+    .filter-pill {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      font-size: 10.5px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 20px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .filter-pill:hover {
+      color: var(--text-primary);
+      border-color: var(--border-color-light);
+    }
+    .filter-pill.active {
+      background: var(--color-accent-subtle);
+      border-color: rgba(88, 166, 255, 0.45);
+      color: var(--color-accent);
+      font-weight: 600;
+    }
+    .filter-pill.alarm.active {
+      background: var(--color-warning-subtle);
+      border-color: rgba(210, 153, 34, 0.45);
+      color: var(--color-warning);
+    }
+
+    /* 连续只读探索折叠条 */
+    .explore-collapsed-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 5px 10px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px dashed var(--border-color);
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .explore-collapsed-row:hover {
+      border-color: var(--border-color-light);
+      color: var(--text-primary);
+    }
+    .explore-collapsed-files {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .explore-collapsed-toggle {
+      flex-shrink: 0;
+      font-weight: 600;
+      color: var(--color-accent);
+    }
+
+    /* 单步手风琴详情 */
+    .step-row.step-expandable {
+      cursor: pointer;
+    }
+    .step-row.step-row-expanded {
+      border-color: var(--color-accent);
+    }
+    .step-detail-accordion {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px;
+      margin-top: 4px;
+      background: var(--bg-base);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      cursor: default;
+    }
+    .step-detail-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .step-detail-pre {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 220px;
+      overflow-y: auto;
+      color: var(--text-primary);
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 6px 8px;
+    }
+    .step-detail-meta {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--text-secondary);
+      word-break: break-all;
+    }
+
+    /* --- UI-REQ-01 四合一通用检视器 ------------------------------- */
+    .inspector-tab-strip {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--border-color);
+      padding: 0 8px;
+      flex-shrink: 0;
+      background: var(--bg-subtle);
+    }
+    .inspector-tab {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 7px 9px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .inspector-tab:hover {
+      color: var(--text-primary);
+    }
+    .inspector-tab.active {
+      color: var(--color-accent);
+      border-bottom-color: var(--color-accent);
+    }
+    .inspector-tab.suggested::after {
+      content: '●';
+      margin-left: 4px;
+      font-size: 8px;
+      color: var(--color-success);
+      vertical-align: middle;
+    }
+    .inspector-body {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .inspector-pane {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px;
+      min-height: 0;
+      flex: 1 1 auto;
+      overflow-y: auto;
+    }
+    .inspector-pane.active {
+      display: flex;
+    }
+    /* 预览页要撑满而不是滚动，否则 iframe 会塌成 0 高 */
+    #ipane-preview.active {
+      overflow: hidden;
+    }
+    #ipane-preview .preview-iframe {
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+    .inspector-empty {
+      padding: 20px 12px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 11.5px;
+    }
+
+    /* Tab1：文件胶囊与 Diff 视图 */
+    .diff-file-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+    .diff-file-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      padding: 3px 8px;
+      background: var(--bg-panel-hover);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      color: var(--text-primary);
+      cursor: pointer;
+      max-width: 100%;
+      transition: border-color 0.15s;
+    }
+    .diff-file-chip:hover {
+      border-color: var(--color-accent);
+    }
+    .diff-file-chip.active {
+      border-color: var(--color-accent);
+      background: var(--color-accent-subtle);
+    }
+    .diff-file-chip .diff-added {
+      color: var(--color-success);
+    }
+    .diff-file-chip .diff-removed {
+      color: var(--color-danger);
+    }
+    .diff-file-chip .diff-path {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .diff-view {
+      flex: 1;
+      min-height: 120px;
+      overflow: auto;
+      background: var(--bg-base);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.5;
+      padding: 6px 0;
+    }
+    .diff-line {
+      display: flex;
+      white-space: pre;
+    }
+    .diff-line-gutter {
+      flex: 0 0 auto;
+      width: 26px;
+      text-align: center;
+      color: var(--text-muted);
+      user-select: none;
+      opacity: 0.7;
+    }
+    .diff-line-text {
+      flex: 1 1 auto;
+      padding-right: 10px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .diff-line.add {
+      background: rgba(63, 185, 80, 0.12);
+      color: #7ee787;
+    }
+    .diff-line.del {
+      background: rgba(248, 81, 73, 0.12);
+      color: #ffa198;
+    }
+    .diff-line.hunk {
+      background: rgba(88, 166, 255, 0.1);
+      color: var(--color-accent);
+      font-weight: 600;
+    }
+    .diff-line.meta {
+      color: var(--text-muted);
+    }
+    .diff-stats-strip {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+
+    /* Tab2：终端与测试输出 */
+    .command-card {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px 10px;
+      background: var(--bg-panel-hover);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      flex-shrink: 0;
+    }
+    .command-card.failed {
+      border-color: rgba(248, 81, 73, 0.5);
+    }
+    .command-card-header {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .exit-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 7px;
+      border-radius: 10px;
+      white-space: nowrap;
+    }
+    .exit-badge.ok {
+      background: var(--color-success-subtle);
+      color: var(--color-success);
+      border: 1px solid rgba(63, 185, 80, 0.35);
+    }
+    .exit-badge.fail {
+      background: rgba(248, 81, 73, 0.18);
+      color: #ff7b72;
+      border: 1px solid rgba(248, 81, 73, 0.45);
+    }
+    .exit-badge.unknown {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+    }
+    .command-text {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-primary);
+      word-break: break-all;
+    }
+    .command-cwd {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      word-break: break-all;
+    }
+    .command-output {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 180px;
+      overflow: auto;
+      background: var(--bg-base);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 6px 8px;
+      color: var(--text-secondary);
+    }
+
+    /* Tab3：任务规划与总结 */
+    .plan-progress-box {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 8px 10px;
+      background: var(--bg-panel-hover);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      flex-shrink: 0;
+    }
+    .plan-progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+    .plan-progress-track {
+      height: 7px;
+      background: #11161d;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .plan-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #238636, var(--color-success));
+      transition: width 0.3s ease;
+    }
+    .plan-checklist-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      font-size: 11.5px;
+      padding: 2px 0;
+      color: var(--text-primary);
+    }
+    .plan-checklist-item.done {
+      color: var(--text-muted);
+      text-decoration: line-through;
+    }
+    .artifact-preview-btn {
+      align-self: flex-start;
+      background: var(--color-accent-subtle);
+      border: 1px solid rgba(88, 166, 255, 0.4);
+      color: var(--color-accent);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+
+    /* Tab4：网页预览与运行时错误条 */
+    .preview-error-bar {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      background: rgba(248, 81, 73, 0.18);
+      border-top: 1px solid var(--color-danger);
+      color: #ffa198;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+    }
+    .preview-error-bar.visible {
+      display: flex;
+    }
+    .preview-error-text {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .btn-copy-error {
+      flex-shrink: 0;
+      background: var(--color-danger);
+      border: none;
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+    .preview-toolbar-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+
+    /* --- UI-REQ-04 策略持久化状态行 ------------------------------- */
+    .policy-persist-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding-top: 8px;
+      border-top: 1px dashed var(--border-color);
+      flex-shrink: 0;
+    }
+    .config-drift-note {
+      display: none;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      color: var(--color-warning);
+    }
+    .config-drift-note.visible {
+      display: inline-flex;
+    }
+    .config-drift-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--color-warning);
+      box-shadow: 0 0 6px var(--color-warning);
+      animation: alert-blink 2s infinite ease-in-out;
+    }
+    .btn-config-action {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      font-size: 10.5px;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+    .btn-config-action:hover {
+      color: var(--text-primary);
+      border-color: var(--border-color-light);
+    }
+    .btn-config-action.primary {
+      background: var(--color-accent-subtle);
+      border-color: rgba(88, 166, 255, 0.4);
+      color: var(--color-accent);
+      font-weight: 600;
+    }
+    .btn-config-action:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    /* --- UI-REQ-05 紧凑下拉胶囊条（窄屏时替代常驻表单） ---------- */
+    .policy-compact-strip {
+      display: none;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--bg-subtle);
+      border-bottom: 1px solid var(--border-color);
+      flex-shrink: 0;
+      z-index: 9;
+    }
+    .compact-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 3px 10px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .compact-pill:hover {
+      color: var(--text-primary);
+      border-color: var(--border-color-light);
+    }
+    .compact-pill.active {
+      color: var(--color-accent);
+      border-color: rgba(88, 166, 255, 0.45);
+      background: var(--color-accent-subtle);
+    }
+    .compact-pill-chevron {
+      font-size: 9px;
+      opacity: 0.75;
+    }
+    .compact-policy-menu {
+      display: none;
+      flex-wrap: wrap;
+      gap: 6px;
+      width: 100%;
+      padding-top: 6px;
+      border-top: 1px dashed var(--border-color);
+    }
+    .compact-policy-menu.visible {
+      display: flex;
+    }
+
+    /* --- UI-REQ-05 历史回放锁定横幅 ------------------------------ */
+    .history-lock-banner {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 6px 12px;
+      background: rgba(210, 153, 34, 0.12);
+      border: 1px solid rgba(210, 153, 34, 0.45);
+      border-radius: var(--radius-md);
+      color: var(--color-warning);
+      font-size: 11.5px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .history-lock-banner.visible {
+      display: flex;
+    }
+    .btn-live-return {
+      background: var(--color-warning);
+      border: none;
+      color: #0f1419;
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .new-turn-pill {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      background: var(--color-accent);
+      color: var(--dsw-alias-bg-base, #0f1419);
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(88, 166, 255, 0.4);
+      flex-shrink: 0;
+      align-self: flex-start;
+    }
+    .new-turn-pill.visible {
+      display: inline-flex;
+      animation: toast-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .new-turn-pill-action {
+      text-decoration: underline;
+    }
+
+    /* 回合卡片里的升级（escalation）/ 结转摘要提示行 */
+    .escalation-hint {
+      font-size: 10.5px;
+      color: var(--color-warning);
+      font-family: var(--font-mono);
+    }
+    .rollover-brief-hint {
+      font-size: 10.5px;
+      color: var(--color-accent);
+      font-family: var(--font-mono);
+      word-break: break-all;
+    }
+
+    /* =========================================================
+       @container 窄屏收拢（UI-REQ-05）
+       容器宽度 < 960px（dsh 内嵌中心列）时：
+       - 右侧常驻 Policy Hot Controls 整体隐藏，改由顶部紧凑胶囊条承载
+       - 侧边栏改为单行「会话 + 产物」双列
+       ========================================================= */
+    @container warroom (max-width: 960px) {
+      .bento-main-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+        padding: 8px;
+      }
+      .policy-panel {
+        display: none;
+      }
+      .policy-compact-strip {
+        display: flex;
+      }
+      .sidebar-column {
+        grid-template-rows: 1fr;
+      }
+      .data-panel {
+        flex-direction: row;
+        gap: 10px;
+      }
+      .sub-section-container {
+        min-width: 0;
+      }
+      .top-telemetry-bar {
+        flex-wrap: wrap;
+        padding: 6px 10px;
+        gap: 6px 10px;
+      }
+      .inspector-tab {
+        padding: 6px 7px;
+        font-size: 10.5px;
+      }
+    }
+
+    @container warroom (max-width: 720px) {
+      .data-panel {
+        flex-direction: column;
+      }
+      .stepper-container {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
     /* 辅助功能：无障碍减少动画 */
     @media (prefers-reduced-motion: reduce) {
       *, ::after, ::before {
@@ -1555,6 +2360,20 @@
       </div>
     </header>
 
+    <!-- UI-REQ-05：@container 窄屏时替代右侧常驻表单的紧凑下拉胶囊条 -->
+    <div id="policy-compact-strip" class="policy-compact-strip">
+      <button id="pill-tier" class="compact-pill" type="button">
+        ⚡ Tier: <span id="pill-tier-value">Medium</span> <span class="compact-pill-chevron">▾</span>
+      </button>
+      <button id="pill-mode" class="compact-pill" type="button">
+        🧭 Mode: <span id="pill-mode-value">Auto</span> <span class="compact-pill-chevron">▾</span>
+      </button>
+      <button id="pill-sandbox" class="compact-pill" type="button">
+        🛡️ 沙箱策略 (<span id="pill-sandbox-value">2/4</span>) <span class="compact-pill-chevron">▾</span>
+      </button>
+      <div id="compact-policy-menu" class="compact-policy-menu"></div>
+    </div>
+
     <!-- 第二行：Bento Grid 主布局 -->
     <main class="bento-main-grid">
       <!-- 区域二：中央主舞台 -->
@@ -1568,6 +2387,18 @@
           <button id="btn-preview-trigger" class="btn-preview-trigger" style="display: none;">
             👁️ 实时预览 HTML 画布
           </button>
+        </div>
+
+        <!-- UI-REQ-05：历史回放锁定横幅 -->
+        <div id="history-lock-banner" class="history-lock-banner">
+          <span id="history-lock-text">⏪ 正在复盘历史回合</span>
+          <button id="btn-return-live" class="btn-live-return" type="button">返回实时流 Live</button>
+        </div>
+
+        <!-- UI-REQ-05：历史锁定期间新回合启动的浮出胶囊 -->
+        <div id="new-turn-pill" class="new-turn-pill">
+          <span id="new-turn-pill-text">🚀 新任务正在后台运行</span>
+          <span class="new-turn-pill-action">点击切回实时监控</span>
         </div>
 
         <!-- 1. 五阶段状态机步骤条 -->
@@ -1632,6 +2463,7 @@
               <span>流式步骤审计时间轴</span>
               <span id="timeline-step-count">共 0 步</span>
             </div>
+            <div id="timeline-filter-row" class="timeline-filter-row"></div>
             <div id="timeline-scroll-container" class="timeline-scroll-container">
               <div class="empty-placeholder">暂无执行步骤</div>
             </div>
@@ -1678,6 +2510,7 @@
               <button class="seg-item" data-value="auto">Auto</button>
               <button class="seg-item" data-value="surgical">🔧 Surgical</button>
               <button class="seg-item" data-value="creative">🎨 Creative</button>
+              <button class="seg-item" data-value="document">📄 Document</button>
             </div>
           </div>
 
@@ -1714,6 +2547,17 @@
                 <span class="switch-desc">pacingEnabled</span>
               </div>
               <button type="button" role="switch" aria-checked="false" id="switch-pacing" class="toggle-switch"></button>
+            </div>
+          </div>
+
+          <!-- UI-REQ-04：策略持久化状态与落盘/重置 -->
+          <div class="policy-persist-row">
+            <span id="config-drift-note" class="config-drift-note">
+              <span class="config-drift-dot"></span> 内存临时生效中
+            </span>
+            <div style="display:flex; gap:6px; margin-left:auto;">
+              <button id="btn-config-save" class="btn-config-action primary" type="button" disabled>💾 保存至配置文件</button>
+              <button id="btn-config-reset" class="btn-config-action" type="button" disabled>↺ 恢复默认</button>
             </div>
           </div>
         </section>
@@ -1757,12 +2601,12 @@
       </div>
     </div>
 
-    <!-- 实时预览分屏面板 -->
+    <!-- UI-REQ-01：四合一通用检视器（Universal Inspector Pane） -->
     <div id="preview-split-panel" class="preview-split-panel">
       <div id="preview-resizer" class="preview-drag-resizer"></div>
       <div class="preview-panel-header">
         <div id="preview-title" class="preview-file-title">
-          <span>👁️ HTML 画布预览</span>
+          <span>🔍 通用检视器</span>
         </div>
         <div class="preview-controls">
           <label class="auto-reload-label">
@@ -1773,7 +2617,56 @@
           <button id="btn-close-preview" class="btn-drawer-close" title="关闭分屏">✕</button>
         </div>
       </div>
-      <iframe id="preview-iframe" class="preview-iframe" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+
+      <!-- 四标签页头 -->
+      <div id="inspector-tab-strip" class="inspector-tab-strip">
+        <button class="inspector-tab active" type="button" data-ipane="diff" id="ipane-tab-diff">📊 代码变更 Diff</button>
+        <button class="inspector-tab" type="button" data-ipane="terminal" id="ipane-tab-terminal">💻 终端输出</button>
+        <button class="inspector-tab" type="button" data-ipane="plan" id="ipane-tab-plan">📋 任务产物</button>
+        <button class="inspector-tab" type="button" data-ipane="preview" id="ipane-tab-preview">👁️ 网页预览</button>
+      </div>
+
+      <div class="inspector-body">
+        <!-- Tab1：代码变更 Diff -->
+        <div id="ipane-diff" class="inspector-pane active">
+          <div id="diff-file-chip-row" class="diff-file-chip-row"></div>
+          <div id="diff-stats-strip" class="diff-stats-strip"></div>
+          <div id="diff-view" class="diff-view"></div>
+        </div>
+
+        <!-- Tab2：终端与测试输出 -->
+        <div id="ipane-terminal" class="inspector-pane">
+          <div id="terminal-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+
+        <!-- Tab3：任务规划与总结 -->
+        <div id="ipane-plan" class="inspector-pane">
+          <div id="plan-progress-box" class="plan-progress-box" style="display:none;">
+            <div class="plan-progress-label">
+              <span>📋 已完成 <span id="plan-progress-done">0</span> / <span id="plan-progress-total">0</span> 项子任务</span>
+              <span id="plan-progress-pct">0%</span>
+            </div>
+            <div class="plan-progress-track">
+              <div id="plan-progress-fill" class="plan-progress-fill" style="width: 0%;"></div>
+            </div>
+          </div>
+          <div id="plan-checklist" style="display:flex; flex-direction:column; gap:2px;"></div>
+          <div id="plan-artifacts-list" style="display:flex; flex-direction:column; gap:6px;"></div>
+        </div>
+
+        <!-- Tab4：网页预览 -->
+        <div id="ipane-preview" class="inspector-pane" style="padding:0;">
+          <div class="preview-toolbar-row" style="padding:8px 10px 6px;">
+            <span id="preview-pane-path" class="preview-file-title" style="font-size:10.5px;">无预览目标</span>
+            <button id="btn-refresh-preview-inline" class="btn-rescan" style="padding: 2px 8px;">🔄 刷新预览</button>
+          </div>
+          <iframe id="preview-iframe" class="preview-iframe" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+          <div id="preview-error-bar" class="preview-error-bar">
+            <span id="preview-error-text" class="preview-error-text">💥 运行时错误</span>
+            <button id="btn-copy-preview-error" class="btn-copy-error" type="button">📋 一键复制报错信息</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Toast 容器 -->
@@ -1801,7 +2694,10 @@
           weekly: null
         },
         activeFallback: false,
-        cachedAt: null
+        cachedAt: null,
+        // v0.8.0（UI-REQ-04）：最近一轮的配额消耗增量，
+        // 形状 {deltaFraction, cumulativeFraction, window}，无数据时为 null
+        burn: null
       },
       lifecycle: {
         phase: 'idle',
@@ -1843,7 +2739,34 @@
       previewRelativePath: null,
       lifecycleTicker: null,
       lastLifecycleUpdateTimestamp: Date.now(),
-      isEvictingSessionId: null
+      isEvictingSessionId: null,
+      // --- v0.8.0 新增交互状态 ---------------------------------------
+      // UI-REQ-01：通用检视器当前标签（diff | terminal | plan | preview）
+      inspectorTab: 'diff',
+      // UI-REQ-01：Tab1 当前选中的文件路径；null = 未选
+      inspectorDiffFile: null,
+      // UI-REQ-01：diff 文本缓存 { [filePath]: {diffText, stats} }
+      diffCache: {},
+      // UI-REQ-01：Tab4 最近一次运行时错误文本（供一键复制）
+      lastPreviewError: null,
+      // UI-REQ-02：时间轴过滤胶囊（all | files | commands | alarms）
+      timelineFilter: 'all',
+      // UI-REQ-02：被展开的连续只读折叠组索引集合
+      expandedExploreGroups: {},
+      // UI-REQ-02：被展开手风琴的步骤索引集合
+      expandedStepIndexes: {},
+      // UI-REQ-03：待二次确认回滚的 turnId
+      rollbackConfirmTurnId: null,
+      // UI-REQ-03：正在执行结转的 sessionId
+      rolloverPendingSessionId: null,
+      // UI-REQ-04：是否检测到内存配置与落盘配置偏离
+      configDrifted: false,
+      // UI-REQ-05：窄屏紧凑胶囊菜单是否展开
+      compactMenuOpen: false,
+      // UI-REQ-05：历史锁定期间收到的新回合启动提示 {stepCount, tier}
+      pendingNewTurn: null,
+      // UI-REQ-01：已经自动高亮过的 turnId，避免反复抢焦点
+      autoSuggestedTurnId: null
     };
 
     // DOM 元素缓存
@@ -1916,6 +2839,57 @@
       btnRefreshPreview: document.getElementById('btn-refresh-preview'),
       btnClosePreview: document.getElementById('btn-close-preview'),
       previewIframe: document.getElementById('preview-iframe'),
+
+      // --- v0.8.0 新增 DOM 缓存 ---------------------------------------
+      // UI-REQ-01：四标签通用检视器
+      inspectorTabStrip: document.getElementById('inspector-tab-strip'),
+      paneTabDiff: document.getElementById('ipane-tab-diff'),
+      paneTabTerminal: document.getElementById('ipane-tab-terminal'),
+      paneTabPlan: document.getElementById('ipane-tab-plan'),
+      paneTabPreview: document.getElementById('ipane-tab-preview'),
+      paneDiff: document.getElementById('ipane-diff'),
+      paneTerminal: document.getElementById('ipane-terminal'),
+      panePlan: document.getElementById('ipane-plan'),
+      panePreview: document.getElementById('ipane-preview'),
+      diffFileChipRow: document.getElementById('diff-file-chip-row'),
+      diffStatsStrip: document.getElementById('diff-stats-strip'),
+      diffView: document.getElementById('diff-view'),
+      terminalList: document.getElementById('terminal-list'),
+      planProgressBox: document.getElementById('plan-progress-box'),
+      planProgressDone: document.getElementById('plan-progress-done'),
+      planProgressTotal: document.getElementById('plan-progress-total'),
+      planProgressPct: document.getElementById('plan-progress-pct'),
+      planProgressFill: document.getElementById('plan-progress-fill'),
+      planChecklist: document.getElementById('plan-checklist'),
+      planArtifactsList: document.getElementById('plan-artifacts-list'),
+      previewPanePath: document.getElementById('preview-pane-path'),
+      btnRefreshPreviewInline: document.getElementById('btn-refresh-preview-inline'),
+      previewErrorBar: document.getElementById('preview-error-bar'),
+      previewErrorText: document.getElementById('preview-error-text'),
+      btnCopyPreviewError: document.getElementById('btn-copy-preview-error'),
+
+      // UI-REQ-02：时间轴降噪
+      timelineFilterRow: document.getElementById('timeline-filter-row'),
+
+      // UI-REQ-04：策略持久化
+      configDriftNote: document.getElementById('config-drift-note'),
+      btnConfigSave: document.getElementById('btn-config-save'),
+      btnConfigReset: document.getElementById('btn-config-reset'),
+
+      // UI-REQ-05：窄屏胶囊条与历史锁定
+      policyCompactStrip: document.getElementById('policy-compact-strip'),
+      pillTier: document.getElementById('pill-tier'),
+      pillTierValue: document.getElementById('pill-tier-value'),
+      pillMode: document.getElementById('pill-mode'),
+      pillModeValue: document.getElementById('pill-mode-value'),
+      pillSandbox: document.getElementById('pill-sandbox'),
+      pillSandboxValue: document.getElementById('pill-sandbox-value'),
+      compactPolicyMenu: document.getElementById('compact-policy-menu'),
+      historyLockBanner: document.getElementById('history-lock-banner'),
+      historyLockText: document.getElementById('history-lock-text'),
+      btnReturnLive: document.getElementById('btn-return-live'),
+      newTurnPill: document.getElementById('new-turn-pill'),
+      newTurnPillText: document.getElementById('new-turn-pill-text'),
 
       toastContainer: document.getElementById('toast-container')
     };
@@ -2121,6 +3095,95 @@
       } catch (err) {
         showToast(`状态校准失败: ${err.message}`, 'error');
       }
+    }
+
+    // =================================================================
+    // 3.5 v0.8.0 通用辅助（UI-REQ-01 ~ UI-REQ-05 共用）
+    //     全部对字段缺失容错：v0.7.0 的旧快照没有 command / burn /
+    //     escalation 等字段，任何一处 undefined 都不得抛异常。
+    // =================================================================
+
+    /** 通用 GET：所有请求一律走 apiUrl() 相对基址。 */
+    async function apiGet(route) {
+      const res = await fetch(apiUrl(route));
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }
+
+    /** 把分数（0.013）格式化为百分比字符串（"1.3%"）；无法解析返回 null。 */
+    function formatFractionPct(fraction) {
+      const n = Number(fraction);
+      if (!Number.isFinite(n)) return null;
+      return `${(Math.abs(n) * 100).toFixed(1)}%`;
+    }
+
+    /** 复制文本到剪贴板，失败时降级为 toast 提示。 */
+    async function copyText(text, okMessage) {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          ta.remove();
+        }
+        showToast(okMessage || '已复制到剪贴板', 'success');
+        return true;
+      } catch (err) {
+        showToast(`复制失败：${err.message || err}`, 'error');
+        return false;
+      }
+    }
+
+    // --- UI-REQ-04：Burn Delta 读取 ----------------------------------
+    /**
+     * 解析某回合的消耗增量。
+     * 优先 turn.burn.fraction（后端 settleTurn 写入的权威值），
+     * 退回到 state.quota.burn.deltaFraction（最近一轮的全局读数）。
+     * @returns {{pct: string, label: string}|null}
+     */
+    function readTurnBurn(turn) {
+      const fromTurn = turn && turn.burn && Number.isFinite(Number(turn.burn.fraction))
+        ? Number(turn.burn.fraction)
+        : null;
+      const quotaBurn = state.quota && state.quota.burn ? state.quota.burn : null;
+      const fraction = fromTurn !== null
+        ? fromTurn
+        : (quotaBurn && Number.isFinite(Number(quotaBurn.deltaFraction)) ? Number(quotaBurn.deltaFraction) : null);
+      if (fraction === null) return null;
+      const pct = formatFractionPct(fraction);
+      if (pct === null) return null;
+      const turnLabel = turn && turn.burn && turn.burn.label ? turn.burn.label : '';
+      const quotaLabel = quotaBurn && quotaBurn.window ? String(quotaBurn.window) : '';
+      return { pct, label: turnLabel || quotaLabel || '5h' };
+    }
+
+    /** 渲染回合卡片上的 `🔋 本轮消耗: -1.3% (5h)` 徽章 HTML（可能为空串）。 */
+    function renderBurnBadge(turn) {
+      const burn = readTurnBurn(turn);
+      if (!burn) return '';
+      const fraction = Number(turn && turn.burn && turn.burn.fraction);
+      const hot = Number.isFinite(fraction) ? fraction >= 0.02 : false;
+      return `<span class="badge burn-badge${hot ? ' hot' : ''}" title="本轮占用的配额百分比">🔋 本轮消耗: -${escapeHtml(burn.pct)} (${escapeHtml(burn.label)})</span>`;
+    }
+
+    // --- 任务模式徽章集中映射（含 v0.8.0 新增 document）---------------
+    const MODE_BADGE_MAP = {
+      surgical: { cls: 'badge-mode-surgical', icon: '🔧', text: 'Surgical' },
+      creative: { cls: 'badge-mode-creative', icon: '🎨', text: 'Creative' },
+      document: { cls: 'badge-mode-document', icon: '📄', text: 'Document' }
+    };
+
+    /** 按任务模式返回徽章 HTML；未知 / 缺失模式返回空串。 */
+    function renderModeBadge(mode) {
+      const entry = MODE_BADGE_MAP[mode];
+      if (!entry) return '';
+      return `<span class="badge ${entry.cls}">${entry.icon} ${entry.text}</span>`;
     }
 
     // -----------------------------------------------------------------
@@ -2364,12 +3427,8 @@
       const turnCount = turn.turnCount || 1;
       const turnLimit = turn.turnLimit || 8;
 
-      let modeBadge = '';
-      if (turn.effectiveMode === 'surgical') {
-        modeBadge = '<span class="badge badge-mode-surgical">🔧 Surgical</span>';
-      } else if (turn.effectiveMode === 'creative') {
-        modeBadge = '<span class="badge badge-mode-creative">🎨 Creative</span>';
-      }
+      // v0.8.0：模式徽章走集中映射表（含 document 三档模式）
+      const modeBadge = renderModeBadge(turn.effectiveMode);
 
       let tierBadge = '';
       if (turn.effectiveTier === 'pro') {
@@ -2384,8 +3443,30 @@
         ? `<span class="downgrade-hint">↓ 已降级：${escapeHtml(turn.downgradedReason)}</span>`
         : '';
 
+      // UI-REQ-04：本轮消耗 Burn Delta 徽章
+      const burnBadgeHtml = renderBurnBadge(turn);
+
+      // REQ-01：升档原因提示 `escalated: flash -> pro (retry)`
+      const escalationHtml = turn.escalation && (turn.escalation.from || turn.escalation.to)
+        ? `<span class="escalation-hint">⬆️ 已升档 ${escapeHtml(turn.escalation.from || '?')} → ${escapeHtml(turn.escalation.to || '?')}${turn.escalation.reason ? ` (${escapeHtml(turn.escalation.reason)})` : ''}</span>`
+        : '';
+
+      // REQ-04：带记忆结转摘要横幅
+      const rolloverHtml = turn.rolloverBrief && Number(turn.rolloverBrief.previousTurnCount) > 0
+        ? `<div class="rollover-brief-hint">🔄 承自前 ${escapeHtml(turn.rolloverBrief.previousTurnCount)} 轮${
+          Array.isArray(turn.rolloverBrief.files) && turn.rolloverBrief.files.length > 0
+            ? ` · 已改文件: ${escapeHtml(turn.rolloverBrief.files.slice(0, 5).join(', '))}`
+            : ''
+        }</div>`
+        : '';
+
       const cwdEscapedClass = turn.cwdEscaped ? 'virtual-cwd-strip escaped' : 'virtual-cwd-strip';
       const cwdIcon = turn.cwdEscaped ? '⚠️ CWD Escaped:' : '📁 Virtual CWD:';
+
+      // UI-REQ-03：活跃回合同样可以回滚（snapshotSha 在 turn:started 时已知）
+      const rollbackActionHtml = turn.rolledBack
+        ? '<span class="rolled-back-tag">⏪ 已回滚</span>'
+        : (turn.snapshotSha ? `<button class="btn-rollback" type="button" data-turn="${escapeHtml(turn.turnId || '')}">⏪ 回滚本轮修改</button>` : '');
 
       el.turnContextBox.innerHTML = `
         <div class="turn-context-card">
@@ -2394,22 +3475,182 @@
             <span class="badge badge-turn-count">Turn ${turnCount}/${turnLimit}</span>
             ${modeBadge}
             ${tierBadge}
+            ${burnBadgeHtml}
             ${downgradeHtml}
+            ${escalationHtml}
           </div>
+          ${rolloverHtml}
           <div class="${cwdEscapedClass}">
             <span>${cwdIcon}</span>
             <span>${escapeHtml(turn.virtualCwd || turn.workspaceDir || '工作区根目录')}</span>
           </div>
           ${turn.taskSpecHead ? `<div style="font-size:11px; color:var(--text-secondary); max-height:36px; overflow:hidden; text-overflow:ellipsis;">任务: ${escapeHtml(turn.taskSpecHead)}</div>` : ''}
+          ${rollbackActionHtml ? `<div class="turn-action-strip">${rollbackActionHtml}</div>` : ''}
         </div>
       `;
+
+      // 绑定活跃回合卡片上的回滚按钮
+      const activeRollbackBtn = el.turnContextBox.querySelector('.btn-rollback');
+      if (activeRollbackBtn) {
+        activeRollbackBtn.addEventListener('click', () => requestRollback(turn.turnId));
+      }
+    }
+
+    // -----------------------------------------------------------------
+    // UI-REQ-02：步骤分类、只读探索折叠与单步手风琴
+    // -----------------------------------------------------------------
+    const READONLY_TOOL_NAMES = ['read_file', 'view_file', 'list_dir', 'grep'];
+
+    /** 是否为「纯只读探索」步骤：clean 且工具名属于只读白名单。 */
+    function isReadOnlyStep(step) {
+      if (!step) return false;
+      const status = step.verdict?.status || 'clean';
+      if (status !== 'clean') return false;
+      const name = String(step.toolName || '').toLowerCase();
+      return READONLY_TOOL_NAMES.some((n) => name === n || name.endsWith('_' + n) || name.includes(n));
+    }
+
+    /** 是否为「文件变更」步骤：命令无关，且工具名或摘要命中写入类关键词。 */
+    function isFileWriteStep(step) {
+      if (!step) return false;
+      if (step.command) return false;
+      const name = String(step.toolName || '').toLowerCase();
+      if (/(write|edit|replace|apply|patch|create_file|delete_file|move)/.test(name)) return true;
+      const summary = String(step.summary || '');
+      return /(写入|已修改|已创建|已删除|rewrote|wrote|updated file)/.test(summary);
+    }
+
+    /** 该步骤在过滤胶囊中归属的类别：'files' | 'commands' | 'alarms' | 'other'。 */
+    function classifyStep(step) {
+      if (!step) return 'other';
+      if (step.verdict?.status && step.verdict.status !== 'clean') return 'alarms';
+      if (step.command) return 'commands';
+      if (isFileWriteStep(step)) return 'files';
+      return 'other';
+    }
+
+    /** 统计数据，供过滤胶囊显示实时计数。 */
+    function computeStepCounts(steps) {
+      const counts = { all: steps.length, files: 0, commands: 0, alarms: 0 };
+      for (const step of steps) {
+        const cat = classifyStep(step);
+        if (cat === 'files') counts.files += 1;
+        else if (cat === 'commands') counts.commands += 1;
+        else if (cat === 'alarms') counts.alarms += 1;
+      }
+      return counts;
+    }
+
+    /**
+     * 把「连续只读探索」聚合成折叠组。
+     * 返回 {type:'step', step, index} 或 {type:'group', steps, indexes, key} 的序列。
+     */
+    function groupTimelineSteps(steps) {
+      const items = [];
+      let run = [];
+      const flushRun = () => {
+        if (run.length >= 3) {
+          items.push({
+            type: 'group',
+            steps: run.map((entry) => entry.step),
+            indexes: run.map((entry) => entry.index),
+            key: `g${run[0].index}-${run[run.length - 1].index}`
+          });
+        } else {
+          for (const entry of run) items.push({ type: 'step', step: entry.step, index: entry.index });
+        }
+        run = [];
+      };
+      steps.forEach((step, index) => {
+        if (isReadOnlyStep(step)) {
+          run.push({ step, index });
+        } else {
+          flushRun();
+          items.push({ type: 'step', step, index });
+        }
+      });
+      flushRun();
+      return items;
+    }
+
+    /** 从只读步骤里尽量提取一个文件名（给折叠条做摘要）。 */
+    function readStepFileName(step) {
+      const summary = String(step?.summary || '');
+      const m = summary.match(/[\w./\\-]+\.\w{1,6}/);
+      if (m) return m[0];
+      return summary.slice(0, 24) || (step?.toolName || 'file');
+    }
+
+    /** 渲染过滤胶囊行（点击即实时过滤）。 */
+    function renderTimelineFilters() {
+      const row = el.timelineFilterRow;
+      if (!row) return;
+      const steps = state.activeTurn?.steps || [];
+      const counts = computeStepCounts(steps);
+      const active = ui.timelineFilter;
+      const defs = [
+        { key: 'all', label: `全部 (${counts.all})`, cls: '' },
+        { key: 'files', label: `✏️ 文件变更 (${counts.files})`, cls: '' },
+        { key: 'commands', label: `💻 命令执行 (${counts.commands})`, cls: '' },
+        { key: 'alarms', label: `⚠️ 审计告警 (${counts.alarms})`, cls: 'alarm' }
+      ];
+      row.innerHTML = defs.map((def) => (
+        `<button type="button" class="filter-pill ${def.cls}${active === def.key ? ' active' : ''}" data-filter="${def.key}">${def.label}</button>`
+      )).join('');
+      row.querySelectorAll('.filter-pill').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          ui.timelineFilter = btn.dataset.filter;
+          renderStepsTimeline();
+        });
+      });
+    }
+
+    /** 渲染单步手风琴详情面板（完整未截断参数 / Virtual CWD / 返回摘要）。 */
+    function createStepDetailAccordion(step) {
+      const box = document.createElement('div');
+      box.className = 'step-detail-accordion';
+
+      const detail = step?.detail || {};
+      const commandText = step?.command?.command
+        || detail.argsJson
+        || detail.argumentsJson
+        || step?.fullArguments
+        || step?.summary
+        || '（无参数记录）';
+
+      const cwd = step?.virtualCwd || step?.command?.cwd || detail.virtualCwd || '（未知）';
+
+      const blocks = [
+        { label: '完整参数 / 命令文本', value: commandText, pre: true },
+        { label: 'Virtual CWD', value: cwd, pre: false },
+        { label: '返回摘要', value: step?.summary || '（无返回摘要）', pre: false }
+      ];
+      if (step?.command?.outputTail) {
+        blocks.push({ label: '输出尾部 (outputTail)', value: step.command.outputTail, pre: true });
+      }
+
+      box.innerHTML = blocks.map((b) => `
+        <div>
+          <div class="step-detail-label">${escapeHtml(b.label)}</div>
+          ${b.pre
+            ? `<pre class="step-detail-pre">${escapeHtml(b.value)}</pre>`
+            : `<div class="step-detail-meta">${escapeHtml(b.value)}</div>`}
+        </div>
+      `).join('');
+      box.addEventListener('click', (ev) => ev.stopPropagation());
+      return box;
     }
 
     // 渲染步骤行
-    function createStepRowElement(step) {
+    function createStepRowElement(step, interactive = true) {
       const row = document.createElement('div');
       const isDestructive = step.verdict?.status === 'destructive';
+      const stepKey = String(step.stepIndex);
+      const expanded = ui.expandedStepIndexes[stepKey] === true;
       row.className = isDestructive ? 'step-row verdict-destructive' : 'step-row';
+      row.classList.add('step-expandable');
+      if (expanded) row.classList.add('step-row-expanded');
+      row.dataset.stepIndex = stepKey;
 
       // 序号
       const idxCell = document.createElement('span');
@@ -2431,7 +3672,15 @@
       // 耗时
       const elapsedCell = document.createElement('span');
       elapsedCell.className = 'step-elapsed-cell';
-      elapsedCell.textContent = `${step.verdict?.elapsedMs ?? 0}ms`;
+      const exitCode = step.command && Number.isFinite(Number(step.command.exitCode))
+        ? Number(step.command.exitCode)
+        : null;
+      if (exitCode !== null) {
+        elapsedCell.textContent = `Exit ${exitCode}`;
+        elapsedCell.style.color = exitCode === 0 ? 'var(--color-success)' : 'var(--color-danger)';
+      } else {
+        elapsedCell.textContent = `${step.verdict?.elapsedMs ?? 0}ms`;
+      }
 
       // 安全判定徽章
       const verdictCell = document.createElement('span');
@@ -2468,24 +3717,91 @@
         row.appendChild(killTag);
       }
 
+      // UI-REQ-02：点击原地展开手风琴（历史视图里以 interactive=false 关闭交互）
+      if (interactive) {
+        row.addEventListener('click', () => {
+          const key = String(step.stepIndex);
+          if (ui.expandedStepIndexes[key]) delete ui.expandedStepIndexes[key];
+          else ui.expandedStepIndexes[key] = true;
+          renderStepsTimeline();
+        });
+      }
+
+      if (expanded && interactive) {
+        row.appendChild(createStepDetailAccordion(step));
+      }
+
       return row;
+    }
+
+    /** 渲染「连续只读探索」折叠条。 */
+    function createExploreGroupElement(group) {
+      const wrap = document.createElement('div');
+      wrap.style.display = 'flex';
+      wrap.style.flexDirection = 'column';
+      wrap.style.gap = '4px';
+
+      const expandedGroup = ui.expandedExploreGroups[group.key] === true;
+      const files = group.steps.map(readStepFileName);
+      const preview = files.slice(0, 3).join(', ');
+      const more = files.length > 3 ? `, +${files.length - 3}` : '';
+
+      const bar = document.createElement('div');
+      bar.className = 'explore-collapsed-row';
+      bar.innerHTML = `
+        <span>🔍 代码库探索：已连续读取 ${group.steps.length} 个文件</span>
+        <span class="explore-collapsed-files">(${escapeHtml(preview)}${escapeHtml(more)})</span>
+        <span class="explore-collapsed-toggle">${expandedGroup ? '收起 ▴' : '展开 ▾'}</span>
+      `;
+      bar.addEventListener('click', () => {
+        if (expandedGroup) delete ui.expandedExploreGroups[group.key];
+        else ui.expandedExploreGroups[group.key] = true;
+        renderStepsTimeline();
+      });
+      wrap.appendChild(bar);
+
+      if (expandedGroup) {
+        for (const step of group.steps) {
+          wrap.appendChild(createStepRowElement(step));
+        }
+      }
+      return wrap;
     }
 
     // 渲染步骤时间轴
     function renderStepsTimeline() {
       const container = el.timelineScrollContainer;
-      const steps = state.activeTurn?.steps || [];
-      el.timelineStepCount.textContent = `共 ${steps.length} 步`;
+      const allSteps = state.activeTurn?.steps || [];
+      el.timelineStepCount.textContent = `共 ${allSteps.length} 步`;
+
+      // UI-REQ-02：先按过滤胶囊筛出可见步骤
+      const filter = ui.timelineFilter || 'all';
+      const steps = filter === 'all'
+        ? allSteps
+        : allSteps.filter((step) => classifyStep(step) === filter);
+
+      renderTimelineFilters();
 
       if (steps.length === 0) {
-        container.innerHTML = '<div class="empty-placeholder">暂无执行步骤</div>';
+        container.innerHTML = allSteps.length === 0
+          ? '<div class="empty-placeholder">暂无执行步骤</div>'
+          : '<div class="empty-placeholder">当前过滤条件下没有匹配的步骤</div>';
         return;
       }
 
       container.innerHTML = '';
       const fragment = document.createDocumentFragment();
-      for (const step of steps) {
-        fragment.appendChild(createStepRowElement(step));
+      if (filter === 'all') {
+        // 「全部」视图下才做连续只读探索折叠
+        for (const item of groupTimelineSteps(steps)) {
+          fragment.appendChild(item.type === 'group'
+            ? createExploreGroupElement(item)
+            : createStepRowElement(item.step));
+        }
+      } else {
+        for (const step of steps) {
+          fragment.appendChild(createStepRowElement(step));
+        }
       }
       container.appendChild(fragment);
 
@@ -2497,6 +3813,21 @@
     // 追加单步并优化滚动
     function appendSingleStep(step) {
       const container = el.timelineScrollContainer;
+
+      // v0.8.0：新步骤可能改变过滤计数与折叠分组，直接走全量重绘（步骤数量级很小）
+      if (ui.timelineFilter !== 'all') {
+        renderStepsTimeline();
+        const stepsCount = state.activeTurn?.steps?.length || 0;
+        el.timelineStepCount.textContent = `共 ${stepsCount} 步`;
+        if (!ui.autoScrollPaused) {
+          container.scrollTop = container.scrollHeight;
+          el.scrollDownNotice.style.display = 'none';
+        } else {
+          el.scrollDownNotice.style.display = 'block';
+        }
+        return;
+      }
+
       if (container.querySelector('.empty-placeholder')) {
         container.innerHTML = '';
       }
@@ -2505,6 +3836,7 @@
 
       const stepsCount = state.activeTurn?.steps?.length || 0;
       el.timelineStepCount.textContent = `共 ${stepsCount} 步`;
+      renderTimelineFilters();
 
       if (!ui.autoScrollPaused) {
         container.scrollTop = container.scrollHeight;
@@ -2547,8 +3879,15 @@
           renderHistoryView();
         });
 
-        const modeIcon = turn.effectiveMode === 'creative' ? '🎨' : '🔧';
+        const modeIcon = MODE_BADGE_MAP[turn.effectiveMode] ? MODE_BADGE_MAP[turn.effectiveMode].icon : '🔧';
         const statusBadge = `<span class="badge ${turn.status === 'ok' ? 'badge-status-ok' : 'badge-tier-pro'}">${escapeHtml(turn.status)}</span>`;
+        const burn = readTurnBurn(turn);
+        const burnHtml = burn
+          ? `<span class="session-burn-line">🔋 -${escapeHtml(burn.pct)}</span>`
+          : '';
+        const rolledBackHtml = turn.rolledBack
+          ? '<span class="session-burn-line" style="color:var(--color-warning);">⏪ 已回滚</span>'
+          : '';
 
         item.innerHTML = `
           <div class="history-item-row">
@@ -2559,6 +3898,9 @@
             <span>耗时 ${(turn.durationMs ? (turn.durationMs / 1000).toFixed(1) : 0)}s</span>
             <span>${formatTime(turn.settledAt || turn.startedAt)}</span>
           </div>
+          ${(burnHtml || rolledBackHtml)
+            ? `<div class="history-item-row" style="font-size:10px;">${burnHtml}${rolledBackHtml}</div>`
+            : ''}
         `;
         fragment.appendChild(item);
       });
@@ -2582,9 +3924,50 @@
       }
 
       const stepsHtml = (activeHist.steps || []).map(s => {
-        const row = createStepRowElement(s);
+        const row = createStepRowElement(s, false);
         return row.outerHTML;
       }).join('');
+
+      // UI-REQ-03：回滚按钮 / 已回滚标记
+      let rollbackHtml = '';
+      if (activeHist.rolledBack) {
+        const restored = Array.isArray(activeHist.rollback?.restoredFiles)
+          ? activeHist.rollback.restoredFiles
+          : [];
+        const removed = Array.isArray(activeHist.rollback?.removedUntracked)
+          ? activeHist.rollback.removedUntracked
+          : [];
+        rollbackHtml = `
+          <div class="rolled-back-tag" style="align-self:flex-start;">
+            ⏪ 已回滚${restored.length || removed.length ? ` · 恢复 ${restored.length} 个跟踪文件、清理 ${removed.length} 个新增文件` : ''}
+          </div>
+        `;
+      } else if (activeHist.snapshotSha) {
+        if (ui.rollbackConfirmTurnId === activeHist.turnId) {
+          rollbackHtml = `
+            <div class="rollback-confirm-group">
+              <span>确认回滚该回合的全部文件改动？此操作不可撤销</span>
+              <button class="btn-rollback-yes" type="button" data-turn="${escapeHtml(activeHist.turnId || '')}">确定回滚</button>
+              <button class="btn-rollback-no" type="button">取消</button>
+            </div>
+          `;
+        } else {
+          rollbackHtml = `
+            <button class="btn-rollback" type="button" data-turn="${escapeHtml(activeHist.turnId || '')}">⏪ 回滚本轮修改</button>
+          `;
+        }
+      }
+
+      // UI-REQ-04：历史回合的本轮消耗徽章
+      const histBurnBadge = renderBurnBadge(activeHist);
+
+      // REQ-01：升档原因
+      const histEscalation = activeHist.escalation && (activeHist.escalation.from || activeHist.escalation.to)
+        ? `<span class="escalation-hint">⬆️ 已升档 ${escapeHtml(activeHist.escalation.from || '?')} → ${escapeHtml(activeHist.escalation.to || '?')}${activeHist.escalation.reason ? ` (${escapeHtml(activeHist.escalation.reason)})` : ''}</span>`
+        : '';
+
+      // UI-REQ-01 联动：历史回合的「在检视器中打开」按钮
+      const openInspectorHtml = `<button class="artifact-preview-btn" type="button" id="btn-open-inspector-hist">🔍 在通用检视器中复盘本回合</button>`;
 
       el.historyTurnDetail.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:8px;">
@@ -2594,6 +3977,13 @@
           </div>
           <span class="badge badge-turn-count">总耗时: ${(activeHist.durationMs ? (activeHist.durationMs / 1000).toFixed(1) : 0)}s</span>
         </div>
+        <div class="context-row">
+          ${renderModeBadge(activeHist.effectiveMode)}
+          ${histBurnBadge}
+          ${histEscalation}
+        </div>
+        ${rollbackHtml ? `<div class="turn-action-strip">${rollbackHtml}</div>` : ''}
+        ${openInspectorHtml}
         ${abortHtml}
         <div>
           <span style="font-weight:600; font-size:11.5px; color:var(--text-secondary);">执行步骤流 (${(activeHist.steps || []).length} 步)</span>
@@ -2610,6 +4000,32 @@
           <pre class="history-pre-box">${escapeHtml(activeHist.gitSummary || '无 Git 差异变更')}</pre>
         </div>
       `;
+
+      // 绑定历史详情区里的回滚 / 检视器交互
+      const histRollbackBtn = el.historyTurnDetail.querySelector('.btn-rollback');
+      if (histRollbackBtn) {
+        histRollbackBtn.addEventListener('click', () => {
+          ui.rollbackConfirmTurnId = histRollbackBtn.dataset.turn || activeHist.turnId;
+          renderHistoryView();
+        });
+      }
+      const histRollbackYes = el.historyTurnDetail.querySelector('.btn-rollback-yes');
+      if (histRollbackYes) {
+        histRollbackYes.addEventListener('click', () => executeRollback(histRollbackYes.dataset.turn || activeHist.turnId));
+      }
+      const histRollbackNo = el.historyTurnDetail.querySelector('.btn-rollback-no');
+      if (histRollbackNo) {
+        histRollbackNo.addEventListener('click', () => {
+          ui.rollbackConfirmTurnId = null;
+          renderHistoryView();
+        });
+      }
+      const histInspectorBtn = document.getElementById('btn-open-inspector-hist');
+      if (histInspectorBtn) {
+        histInspectorBtn.addEventListener('click', () => {
+          openInspectorForTurn(activeHist);
+        });
+      }
     }
 
     // 切换主舞台 Tab
@@ -2620,12 +4036,46 @@
         el.tabHistory.classList.remove('active');
         el.stageActiveView.style.display = 'flex';
         el.stageHistoryView.style.display = 'none';
+        ui.pendingNewTurn = null;
+        renderHistoryLockBanner();
       } else {
         el.tabCurrent.classList.remove('active');
         el.tabHistory.classList.add('active');
         el.stageActiveView.style.display = 'none';
         el.stageHistoryView.style.display = 'grid';
         renderHistoryView();
+        renderHistoryLockBanner();
+      }
+    }
+
+    // -----------------------------------------------------------------
+    // UI-REQ-05：历史回放锁定横幅 + 新回合浮出胶囊
+    // -----------------------------------------------------------------
+    function renderHistoryLockBanner() {
+      const banner = el.historyLockBanner;
+      const pill = el.newTurnPill;
+      if (!banner || !pill) return;
+
+      const locked = ui.activeTab === 'history';
+      if (locked) {
+        const turns = state.recentTurns || [];
+        const selected = turns[ui.selectedHistoryIndex] || turns[0];
+        // 历史回合序号从 1 起算（最近的在最前）
+        const ordinal = Math.max(1, turns.length - ui.selectedHistoryIndex);
+        el.historyLockText.textContent = `⏪ 正在复盘历史回合 #${ordinal}`;
+        banner.classList.add('visible');
+      } else {
+        banner.classList.remove('visible');
+      }
+
+      // 锁定期间新回合启动：不切页，只浮出胶囊
+      if (locked && ui.pendingNewTurn) {
+        const stepCount = ui.pendingNewTurn.stepCount || 0;
+        const tier = ui.pendingNewTurn.tier || 'Flash';
+        el.newTurnPillText.textContent = `🚀 新任务正在后台运行 (Step ${stepCount} · ${tier})`;
+        pill.classList.add('visible');
+      } else {
+        pill.classList.remove('visible');
       }
     }
 
@@ -2664,6 +4114,122 @@
         el.descOutsideNote.style.display = 'none';
         el.descOutsideDefault.style.display = 'inline';
       }
+
+      // UI-REQ-04：策略持久化状态（内存临时生效中）与落盘/重置按钮
+      recomputeConfigDrift();
+      renderPolicyPersistence();
+      // UI-REQ-05：窄屏紧凑下拉胶囊条
+      renderCompactPolicyStrip();
+    }
+
+    // -----------------------------------------------------------------
+    // UI-REQ-04：策略配置持久化状态
+    // -----------------------------------------------------------------
+
+    /**
+     * 「落盘基线」：首次拿到运行时配置时快照一次，之后不再覆盖。
+     * config:updated 事件在自己热改后也会回落一次，若每次都重采基线，
+     * 偏离状态就永远无法被观测到，所以只在初始化时采一次。
+     */
+    let policyBaselineConfig = null;
+    const POLICY_DRIFT_FIELDS = [
+      'thinkingLevel', 'taskMode', 'failOnEscape',
+      'realtimeKillSwitch', 'allowOutsideWorkspace', 'pacingEnabled'
+    ];
+
+    /** 重新计算「当前内存配置与落盘基线是否偏离」。 */
+    function recomputeConfigDrift() {
+      const cfg = state.runtimeConfig || {};
+      if (policyBaselineConfig === null) {
+        policyBaselineConfig = {};
+        for (const key of POLICY_DRIFT_FIELDS) policyBaselineConfig[key] = cfg[key];
+        ui.configDrifted = false;
+        return;
+      }
+      let drifted = false;
+      for (const key of POLICY_DRIFT_FIELDS) {
+        if (cfg[key] !== policyBaselineConfig[key]) {
+          drifted = true;
+          break;
+        }
+      }
+      // 显式标记（热改/恢复默认成功但尚未落盘）与字段比对取并集
+      ui.configDrifted = drifted || ui.configDrifted === true;
+    }
+
+    function renderPolicyPersistence() {
+      if (!el.configDriftNote) return;
+      if (ui.configDrifted) {
+        el.configDriftNote.classList.add('visible');
+        el.btnConfigSave.disabled = false;
+        el.btnConfigReset.disabled = false;
+      } else {
+        el.configDriftNote.classList.remove('visible');
+        el.btnConfigSave.disabled = true;
+        el.btnConfigReset.disabled = true;
+      }
+    }
+
+    // -----------------------------------------------------------------
+    // UI-REQ-05：窄屏紧凑下拉胶囊条渲染
+    // -----------------------------------------------------------------
+    const TIER_LABEL_MAP = {
+      minimal: 'Flash Lite',
+      medium: 'Medium',
+      high: 'Pro (High)',
+      extra_high: 'Pro (Extra High)'
+    };
+    const MODE_LABEL_MAP = {
+      auto: 'Auto',
+      surgical: 'Surgical',
+      creative: 'Creative',
+      document: 'Document'
+    };
+
+    function renderCompactPolicyStrip() {
+      const cfg = state.runtimeConfig || {};
+      if (el.pillTierValue) el.pillTierValue.textContent = TIER_LABEL_MAP[cfg.thinkingLevel] || 'Medium';
+      if (el.pillModeValue) el.pillModeValue.textContent = MODE_LABEL_MAP[cfg.taskMode] || 'Auto';
+
+      // 沙箱策略已完成项 / 总数（4 个安全开关）
+      const switches = [
+        !!cfg.realtimeKillSwitch,
+        !!cfg.failOnEscape,
+        !cfg.allowOutsideWorkspace,
+        !!cfg.pacingEnabled
+      ];
+      const onCount = switches.filter(Boolean).length;
+      if (el.pillSandboxValue) el.pillSandboxValue.textContent = `${onCount}/${switches.length}`;
+
+      // 展开后的菜单：把三组分段控件镜像成紧凑按钮
+      if (!el.compactPolicyMenu) return;
+      el.compactPolicyMenu.classList.toggle('visible', ui.compactMenuOpen === true);
+      if (!ui.compactMenuOpen) {
+        el.compactPolicyMenu.innerHTML = '';
+        return;
+      }
+      const tierButtons = ['minimal', 'medium', 'high'].map((value) => (
+        `<button type="button" class="compact-pill${cfg.thinkingLevel === value ? ' active' : ''}" data-compact-tier="${value}">${escapeHtml(TIER_LABEL_MAP[value])}</button>`
+      )).join('');
+      const modeButtons = ['auto', 'surgical', 'creative', 'document'].map((value) => (
+        `<button type="button" class="compact-pill${cfg.taskMode === value ? ' active' : ''}" data-compact-mode="${value}">${escapeHtml(MODE_LABEL_MAP[value])}</button>`
+      )).join('');
+      el.compactPolicyMenu.innerHTML = tierButtons + modeButtons;
+
+      el.compactPolicyMenu.querySelectorAll('[data-compact-tier]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          ui.compactMenuOpen = false;
+          if (state.runtimeConfig.thinkingLevel === btn.dataset.compactTier) return;
+          updateRuntimeConfigField({ thinkingLevel: btn.dataset.compactTier });
+        });
+      });
+      el.compactPolicyMenu.querySelectorAll('[data-compact-mode]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          ui.compactMenuOpen = false;
+          if (state.runtimeConfig.taskMode === btn.dataset.compactMode) return;
+          updateRuntimeConfigField({ taskMode: btn.dataset.compactMode });
+        });
+      });
     }
 
     function setSwitchChecked(btn, checked) {
@@ -2691,6 +4257,12 @@
         const isLong = (sess.turnCount || 0) >= longTurnsThreshold;
         const longBadge = isLong ? '<span class="badge badge-tier-pro" style="font-size:9.5px;">⚠️ 长会话高消耗</span>' : '';
 
+        // UI-REQ-04：会话累计消耗 Burn Delta
+        const burnCumulativePct = formatFractionPct(sess.burnCumulative);
+        const burnLine = burnCumulativePct
+          ? `<span class="session-burn-line${Math.abs(Number(sess.burnCumulative) || 0) >= 0.05 ? ' hot' : ''}" title="该会话累计消耗的配额">🔋 累计消耗: -${escapeHtml(burnCumulativePct)}</span>`
+          : '';
+
         // 文件标签
         const touched = sess.lastTouchedFiles || [];
         const filesShown = touched.slice(0, 3);
@@ -2715,18 +4287,35 @@
             </button>
           `;
 
+        // UI-REQ-03：长会话时与驱逐按钮并排提供「带记忆结转」
+        const rolloverHtml = isLong
+          ? (ui.rolloverPendingSessionId === sess.sessionId
+            ? '<button class="btn-rollover" type="button" disabled>🔄 结转中…</button>'
+            : `<button class="btn-rollover" type="button" data-rollover-sess="${escapeHtml(sess.sessionId)}">🔄 带记忆结转</button>`)
+          : '';
+
+        // 模式与失败状态（v0.8.0 新增 session 行字段，缺失时静默）
+        const sessModeBadge = renderModeBadge(sess.taskMode);
+        const sessFailedBadge = sess.lastTurnFailed === true
+          ? '<span class="badge badge-tier-pro" style="font-size:9.5px;">⚠️ 上轮失败</span>'
+          : '';
+
         card.innerHTML = `
           <div class="session-header-row">
             <span class="session-id-text" title="${escapeHtml(sess.sessionId)}">🆔 ${escapeHtml(sess.sessionId)}</span>
             <div style="display:flex; align-items:center; gap:4px;">
-              <span class="badge badge-turn-count">Turn ${sess.turnCount || 1}</span>
+              <span class="badge badge-turn-count">Turn ${sess.turnCount || 1}${Number(sess.cumulativeTurnCount) > Number(sess.turnCount) ? ` (累计 ${escapeHtml(sess.cumulativeTurnCount)})` : ''}</span>
               ${longBadge}
+              ${sessFailedBadge}
+              ${sessModeBadge}
             </div>
           </div>
           <div class="session-files-row">
             ${filesHtml || '<span style="color:var(--text-muted); font-size:10px;">无触碰文件</span>'}
           </div>
-          <div style="display:flex; justify-content:flex-end; margin-top:2px;">
+          ${burnLine ? `<div class="session-files-row">${burnLine}</div>` : ''}
+          <div style="display:flex; justify-content:flex-end; align-items:center; gap:6px; margin-top:2px;">
+            ${rolloverHtml}
             ${actionHtml}
           </div>
         `;
@@ -2763,6 +4352,23 @@
         btn.addEventListener('click', () => {
           ui.isEvictingSessionId = null;
           renderSessions();
+        });
+      });
+
+      // UI-REQ-03：绑定带记忆结转按钮
+      el.sessionsScrollList.querySelectorAll('[data-rollover-sess]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const sessId = btn.dataset.rolloverSess;
+          ui.rolloverPendingSessionId = sessId;
+          renderSessions();
+          const res = await apiPost(apiUrl('api/sessions/rollover'), { sessionId: sessId });
+          ui.rolloverPendingSessionId = null;
+          if (res.ok) {
+            showToast(`会话 ${sessId} 已完成带记忆结转`, 'success');
+            await fetchState();
+          } else {
+            renderSessions();
+          }
         });
       });
     }
@@ -2841,6 +4447,12 @@
       renderSessions();
       renderArtifacts();
       checkLivePreviewAvailability();
+      // v0.8.0：历史锁定横幅 + 通用检视器数据页
+      renderHistoryLockBanner();
+      if (ui.previewVisible) {
+        refreshInspectorPanes();
+        suggestInspectorTab(getInspectorTurn());
+      }
     }
 
     // -----------------------------------------------------------------
@@ -2874,9 +4486,11 @@
     function openPreviewSplitPanel(relPath) {
       ui.previewVisible = true;
       ui.previewRelativePath = relPath || ui.previewRelativePath || 'index.html';
-      el.previewTitle.innerHTML = `<span>👁️ 实时预览: <code>${escapeHtml(ui.previewRelativePath)}</code></span>`;
+      el.previewTitle.innerHTML = `<span>🔍 通用检视器</span>`;
       el.previewSplitPanel.classList.add('visible');
-      reloadPreviewIframe();
+      // 打开时立即填充三个数据标签页；是否切到预览标签由 suggestInspectorTab 决定
+      refreshInspectorPanes();
+      if (ui.inspectorTab === 'preview') reloadPreviewIframe();
     }
 
     function closePreviewSplitPanel() {
@@ -2884,10 +4498,421 @@
       el.previewSplitPanel.classList.remove('visible');
     }
 
+    /**
+     * 重载预览 iframe。
+     * UI-REQ-01：先置 about:blank 再延迟 50ms 载入 —— 直接替换 src 会让旧的
+     * WebGL 上下文悬挂，多刷几次就触发 "Too many active WebGL contexts" 黑屏。
+     */
     function reloadPreviewIframe() {
-      if (!ui.previewRelativePath) return;
-      const cleanPath = ui.previewRelativePath.replace(/^[/\\]+/, '');
-      el.previewIframe.src = apiUrl(`api/workspace-preview/${cleanPath}?_t=${Date.now()}`);
+      if (!ui.previewRelativePath) {
+        if (el.previewPanePath) el.previewPanePath.textContent = '无预览目标';
+        return;
+      }
+      const cleanPath = String(ui.previewRelativePath).replace(/^[/\\]+/, '');
+      if (el.previewPanePath) {
+        el.previewPanePath.innerHTML = `👁️ 实时预览: <code>${escapeHtml(cleanPath)}</code>`;
+      }
+      const iframe = el.previewIframe;
+      if (!iframe) return;
+      clearPreviewError();
+      iframe.src = 'about:blank';
+      setTimeout(() => {
+        iframe.src = apiUrl(`api/workspace-preview/${cleanPath}?_t=${Date.now()}`);
+      }, 50);
+    }
+
+    // -----------------------------------------------------------------
+    // UI-REQ-01：四标签通用检视器
+    // -----------------------------------------------------------------
+
+    /** 取当前检视器要展示的回合：历史锁定态取选中历史回合，否则取活跃回合/最近回合。 */
+    function getInspectorTurn() {
+      if (ui.activeTab === 'history') {
+        const turns = state.recentTurns || [];
+        return turns[ui.selectedHistoryIndex] || turns[0] || null;
+      }
+      return state.activeTurn || (state.recentTurns || [])[0] || null;
+    }
+
+    /** 切换检视器标签页。 */
+    function switchInspectorTab(name) {
+      ui.inspectorTab = name;
+      const panes = {
+        diff: el.paneDiff,
+        terminal: el.paneTerminal,
+        plan: el.panePlan,
+        preview: el.panePreview
+      };
+      const tabs = {
+        diff: el.paneTabDiff,
+        terminal: el.paneTabTerminal,
+        plan: el.paneTabPlan,
+        preview: el.paneTabPreview
+      };
+      Object.keys(panes).forEach((key) => {
+        if (panes[key]) panes[key].classList.toggle('active', key === name);
+        if (tabs[key]) tabs[key].classList.toggle('active', key === name);
+      });
+      if (name === 'preview' && ui.previewVisible) reloadPreviewIframe();
+      if (name === 'diff') renderInspectorDiffPane(getInspectorTurn());
+      if (name === 'terminal') renderInspectorTerminalPane(getInspectorTurn());
+      if (name === 'plan') renderInspectorPlanPane(getInspectorTurn());
+    }
+
+    /** 依据回合产出，自动高亮最匹配的标签页（每个回合只抢一次焦点）。 */
+    function suggestInspectorTab(turn) {
+      if (!turn || !ui.previewVisible) return;
+      const turnKey = turn.turnId || turn.sessionId || '';
+      if (turnKey !== '' && ui.autoSuggestedTurnId === turnKey) return;
+      const steps = Array.isArray(turn.steps) ? turn.steps : [];
+      const hasFailedCommand = steps.some((s) => s && s.command && Number.isFinite(Number(s.command.exitCode)) && Number(s.command.exitCode) !== 0);
+      const changed = Array.isArray(turn.changedFiles) ? turn.changedFiles : [];
+      const hasChanges = changed.length > 0;
+      const hasWebOutput = changed.some((f) => /\.(html?|svg)$/i.test(String(f?.path || '')))
+        || steps.some((s) => /\.(html?|svg)\b/i.test(String(s?.summary || '')));
+
+      let target = 'plan';
+      if (hasFailedCommand) target = 'terminal';
+      else if (hasChanges) target = 'diff';
+      else if (hasWebOutput) target = 'preview';
+      else target = 'plan';
+
+      ui.autoSuggestedTurnId = turnKey || null;
+      switchInspectorTab(target);
+    }
+
+    /** 打开检视器并针对某个回合定位到最匹配的标签页。 */
+    function openInspectorForTurn(turn) {
+      ui.previewVisible = true;
+      el.previewSplitPanel.classList.add('visible');
+      ui.autoSuggestedTurnId = null;
+      refreshInspectorPanes();
+      suggestInspectorTab(turn);
+      if (ui.inspectorTab === 'preview') reloadPreviewIframe();
+    }
+
+    /** 全量刷新三个数据标签页（不触发预览 iframe 重载）。 */
+    function refreshInspectorPanes() {
+      const turn = getInspectorTurn();
+      renderInspectorDiffPane(turn);
+      renderInspectorTerminalPane(turn);
+      renderInspectorPlanPane(turn);
+    }
+
+    // --- Tab1：代码变更 Diff -----------------------------------------
+
+    /** 汇总某回合的变更文件列表（changedFiles 优先，退回到 touchedFiles）。 */
+    function readChangedFiles(turn) {
+      if (!turn) return [];
+      if (Array.isArray(turn.changedFiles) && turn.changedFiles.length > 0) {
+        return turn.changedFiles
+          .filter((f) => f && f.path)
+          .map((f) => ({
+            path: String(f.path),
+            added: Number(f.added) || 0,
+            removed: Number(f.removed) || 0
+          }));
+      }
+      if (Array.isArray(turn.touchedFiles) && turn.touchedFiles.length > 0) {
+        return turn.touchedFiles
+          .filter((f) => typeof f === 'string' && f !== '')
+          .map((f) => ({ path: f, added: 0, removed: 0 }));
+      }
+      return [];
+    }
+
+    /** 渲染 Tab1 的文件胶囊列表 + 当前文件的 Diff 正文。 */
+    function renderInspectorDiffPane(turn) {
+      if (!el.diffFileChipRow || !el.diffView) return;
+      const files = readChangedFiles(turn);
+
+      if (files.length === 0) {
+        el.diffFileChipRow.innerHTML = '';
+        el.diffStatsStrip.textContent = '';
+        el.diffView.innerHTML = '<div class="inspector-empty">本回合没有文件变更记录</div>';
+        return;
+      }
+
+      // 选中的文件失效时回落到第一个
+      const selected = files.find((f) => f.path === ui.inspectorDiffFile) || files[0];
+      ui.inspectorDiffFile = selected.path;
+
+      el.diffFileChipRow.innerHTML = files.map((f) => {
+        const activeCls = f.path === selected.path ? ' active' : '';
+        const stats = (f.added || f.removed)
+          ? `<span class="diff-added">+${f.added}</span><span class="diff-removed">-${f.removed}</span>`
+          : '';
+        return `<button type="button" class="diff-file-chip${activeCls}" data-diff-file="${escapeHtml(f.path)}" title="${escapeHtml(f.path)}">
+          <span class="diff-path">${escapeHtml(f.path)}</span>${stats}
+        </button>`;
+      }).join('');
+
+      el.diffFileChipRow.querySelectorAll('[data-diff-file]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          ui.inspectorDiffFile = btn.dataset.diffFile;
+          renderInspectorDiffPane(getInspectorTurn());
+        });
+      });
+
+      const totalAdded = files.reduce((acc, f) => acc + (f.added || 0), 0);
+      const totalRemoved = files.reduce((acc, f) => acc + (f.removed || 0), 0);
+      el.diffStatsStrip.innerHTML = `<span>${files.length} 个文件变更</span>
+        <span class="diff-added">+${totalAdded}</span>
+        <span class="diff-removed">-${totalRemoved}</span>`;
+
+      renderDiffForFile(turn, selected.path);
+    }
+
+    /** 拉取并渲染单个文件的 unified diff（带缓存）。 */
+    async function renderDiffForFile(turn, filePath) {
+      const cacheKey = `${turn?.turnId || ''}::${filePath}`;
+      const cached = ui.diffCache[cacheKey];
+      if (cached && typeof cached.diffText === 'string') {
+        el.diffView.innerHTML = renderUnifiedDiffHtml(cached.diffText);
+        return;
+      }
+      el.diffView.innerHTML = '<div class="inspector-empty">正在拉取 Diff…</div>';
+      try {
+        const turnId = turn?.turnId || '';
+        const data = await apiGet(
+          `api/git-diff?turnId=${encodeURIComponent(turnId)}&file=${encodeURIComponent(filePath)}`
+        );
+        const diffText = typeof data?.diffText === 'string' ? data.diffText : '';
+        ui.diffCache[cacheKey] = { diffText, stats: data?.stats || null };
+        // 拉取期间用户可能已经切了文件，避免闪回错误内容
+        if (ui.inspectorDiffFile !== filePath) return;
+        el.diffView.innerHTML = renderUnifiedDiffHtml(diffText);
+      } catch (err) {
+        if (ui.inspectorDiffFile !== filePath) return;
+        el.diffView.innerHTML = `<div class="inspector-empty" style="color:var(--color-danger);">Diff 拉取失败: ${escapeHtml(err.message || String(err))}</div>`;
+      }
+    }
+
+    /**
+     * 把 unified diff 文本渲染成红绿高亮 HTML。
+     * 逐行判定：以 `+` 开头 → 新增；`-` 开头 → 删除；`@@` → hunk 头；
+     * `diff --git` / `index` / `+++` / `---` → 元信息。
+     */
+    function renderUnifiedDiffHtml(diffText) {
+      const text = String(diffText || '');
+      if (text.trim() === '') return '<div class="inspector-empty">该文件没有可展示的 Diff 内容</div>';
+      const lines = text.split(/\r?\n/);
+      const html = lines.map((line, i) => {
+        let cls = 'ctx';
+        if (line.startsWith('@@')) cls = 'hunk';
+        else if (line.startsWith('+++') || line.startsWith('---') || line.startsWith('diff --git') || line.startsWith('index ')) cls = 'meta';
+        else if (line.startsWith('+')) cls = 'add';
+        else if (line.startsWith('-')) cls = 'del';
+        return `<div class="diff-line ${cls}"><span class="diff-line-gutter">${i + 1}</span><span class="diff-line-text">${escapeHtml(line) || '&nbsp;'}</span></div>`;
+      }).join('');
+      return html;
+    }
+
+    // --- Tab2：终端与测试输出 ----------------------------------------
+
+    /** 从回合 steps 中提取所有带 command 的执行记录。 */
+    function readTurnCommands(turn) {
+      const steps = Array.isArray(turn?.steps) ? turn.steps : [];
+      return steps.filter((s) => s && s.command && typeof s.command.command === 'string');
+    }
+
+    /** 渲染 Tab2：命令原文 / cwd / 退出码徽章 / outputTail。 */
+    function renderInspectorTerminalPane(turn) {
+      if (!el.terminalList) return;
+      const commands = readTurnCommands(turn);
+      const summary = turn && turn.commands ? turn.commands : null;
+
+      if (commands.length === 0 && !summary) {
+        el.terminalList.innerHTML = '<div class="inspector-empty">本回合没有 run_command 执行记录</div>';
+        return;
+      }
+
+      const summaryHtml = summary
+        ? `<div class="diff-stats-strip">
+            <span>共 ${Number(summary.total) || 0} 条命令</span>
+            <span style="color:${Number(summary.failed) > 0 ? 'var(--color-danger)' : 'var(--color-success)'};">失败 ${Number(summary.failed) || 0} 条</span>
+            ${summary.verificationFailed ? '<span style="color:var(--color-danger);font-weight:700;">⚠️ 最后一条验收命令非零退出</span>' : ''}
+          </div>`
+        : '';
+
+      const cardsHtml = commands.map((step) => {
+        const cmd = step.command;
+        const exitCode = Number.isFinite(Number(cmd.exitCode)) ? Number(cmd.exitCode) : null;
+        let badgeCls = 'unknown';
+        let badgeText = '⚪ 退出码未知';
+        if (exitCode !== null) {
+          if (exitCode === 0) {
+            badgeCls = 'ok';
+            badgeText = '🟢 Exit 0';
+          } else {
+            badgeCls = 'fail';
+            badgeText = `🔴 Exit ${exitCode}`;
+          }
+        }
+        const failedCls = (exitCode !== null && exitCode !== 0) || cmd.failed === true ? ' failed' : '';
+        return `<div class="command-card${failedCls}">
+          <div class="command-card-header">
+            <span class="exit-badge ${badgeCls}">${escapeHtml(badgeText)}</span>
+            <span style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono);">#${escapeHtml(step.stepIndex)}</span>
+          </div>
+          <div class="command-text">${escapeHtml(cmd.command)}</div>
+          ${cmd.cwd ? `<div class="command-cwd">📁 cwd: ${escapeHtml(cmd.cwd)}</div>` : ''}
+          ${cmd.outputTail ? `<pre class="command-output">${escapeHtml(cmd.outputTail)}</pre>` : ''}
+        </div>`;
+      }).join('');
+
+      el.terminalList.innerHTML = summaryHtml + cardsHtml;
+    }
+
+    // --- Tab3：任务规划与总结 ----------------------------------------
+
+    /**
+     * 解析 task.md 里的 Markdown 任务列表。
+     * @returns {{done: number, total: number, items: Array<{done: boolean, text: string}>}}
+     */
+    function parseTaskChecklist(markdownText) {
+      const result = { done: 0, total: 0, items: [] };
+      if (!markdownText) return result;
+      const lines = String(markdownText).split(/\r?\n/);
+      for (const line of lines) {
+        const match = line.match(/^\s*[-*+]\s+\[([ xX])\]\s+(.*)$/);
+        if (!match) continue;
+        const done = match[1].toLowerCase() === 'x';
+        const text = match[2].trim();
+        result.items.push({ done, text });
+        result.total += 1;
+        if (done) result.done += 1;
+      }
+      return result;
+    }
+
+    /** 找到 task.md 产物（可能藏在 drawer 可读的产物列表里）。 */
+    function findTaskArtifact() {
+      const artifacts = Array.isArray(state.artifacts) ? state.artifacts : [];
+      return artifacts.find((a) => String(a?.name || '').toLowerCase() === 'task.md') || null;
+    }
+
+    /** 渲染 Tab3：task.md 完成度进度条 + 产物列表。 */
+    async function renderInspectorPlanPane(turn) {
+      if (!el.planArtifactsList) return;
+
+      // A. 产物列表（沿用 state.artifacts）
+      const artifacts = Array.isArray(state.artifacts) ? state.artifacts : [];
+      const turnArtifacts = Array.isArray(turn?.artifacts) ? turn.artifacts : [];
+      const names = new Set();
+      const rows = [];
+      for (const a of artifacts) {
+        if (!a || !a.name) continue;
+        names.add(a.name);
+        rows.push({ name: a.name, bytes: a.bytes, updatedAt: a.updatedAt, conversationId: a.conversationId });
+      }
+      for (const a of turnArtifacts) {
+        if (!a || !a.name || names.has(a.name)) continue;
+        names.add(a.name);
+        rows.push({ name: a.name, bytes: a.bytes, updatedAt: a.updatedAt, conversationId: a.conversationId });
+      }
+
+      el.planArtifactsList.innerHTML = rows.length === 0
+        ? '<div class="inspector-empty">本回合没有 Brain 产物</div>'
+        : rows.map((r) => `
+          <button type="button" class="artifact-preview-btn" data-artifact="${escapeHtml(r.name)}">
+            📄 ${escapeHtml(r.name)} · ${formatBytes(r.bytes)} · ${formatTime(r.updatedAt)}
+          </button>
+        `).join('');
+
+      el.planArtifactsList.querySelectorAll('[data-artifact]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const found = artifacts.find((a) => a?.name === btn.dataset.artifact)
+            || turnArtifacts.find((a) => a?.name === btn.dataset.artifact)
+            || { name: btn.dataset.artifact };
+          openArtifactDrawer(found);
+        });
+      });
+
+      // B. task.md 子任务完成度进度条
+      const taskArtifact = findTaskArtifact();
+      if (!taskArtifact) {
+        el.planProgressBox.style.display = 'none';
+        el.planChecklist.innerHTML = '';
+        return;
+      }
+      let markdown = null;
+      try {
+        const url = apiUrl(`api/artifact?conversationId=${encodeURIComponent(taskArtifact.conversationId || '')}&file=${encodeURIComponent(taskArtifact.name || 'task.md')}`);
+        const res = await fetch(url);
+        if (res.ok) markdown = await res.text();
+      } catch (_) {
+        markdown = null;
+      }
+      const checklist = parseTaskChecklist(markdown || '');
+      if (checklist.total === 0) {
+        el.planProgressBox.style.display = 'none';
+        el.planChecklist.innerHTML = '';
+        return;
+      }
+      const pct = Math.round((checklist.done / checklist.total) * 100);
+      el.planProgressBox.style.display = 'flex';
+      el.planProgressDone.textContent = String(checklist.done);
+      el.planProgressTotal.textContent = String(checklist.total);
+      el.planProgressPct.textContent = `${pct}%`;
+      el.planProgressFill.style.width = `${pct}%`;
+      el.planChecklist.innerHTML = checklist.items.map((item) => (
+        `<div class="plan-checklist-item${item.done ? ' done' : ''}">
+          <span>${item.done ? '☑️' : '⬜'}</span><span>${escapeHtml(item.text)}</span>
+        </div>`
+      )).join('');
+    }
+
+    // --- Tab4：预览运行时错误捕获 -------------------------------------
+
+    /** 显示预览 iframe 的运行时错误条。 */
+    function showPreviewError(message, line) {
+      if (!el.previewErrorBar) return;
+      const lineInfo = line !== null && line !== undefined && line !== '' ? ` (${line})` : '';
+      const text = `💥 运行时错误: ${message}${lineInfo}`;
+      ui.lastPreviewError = text;
+      el.previewErrorText.textContent = text;
+      el.previewErrorBar.classList.add('visible');
+    }
+
+    function clearPreviewError() {
+      ui.lastPreviewError = null;
+      if (el.previewErrorBar) {
+        el.previewErrorBar.classList.remove('visible');
+        el.previewErrorText.textContent = '💥 运行时错误';
+      }
+    }
+
+    /**
+     * 给预览 iframe 的同源 contentWindow 挂 error / unhandledrejection 监听。
+     * 跨源会抛 SecurityError —— 静默忽略，保持沙箱语义不变。
+     * 由 iframe 的 load 事件驱动：每次文档加载完成（含 about:blank → 真实页面）
+     * 都重新尝试挂载一次，未跨源时才能拿到 contentWindow。
+     */
+    function bindPreviewErrorListeners() {
+      const iframe = el.previewIframe;
+      if (!iframe) return;
+      try {
+        const win = iframe.contentWindow;
+        if (!win) return;
+        if (win.__antigravityErrorBound === true) return;
+        win.__antigravityErrorBound = true;
+        win.addEventListener('error', (event) => {
+          const message = event?.message || (event?.target && event.target.src) || '未知脚本错误';
+          const line = event?.lineno;
+          showPreviewError(message, line);
+        });
+        win.addEventListener('unhandledrejection', (event) => {
+          const reason = event?.reason;
+          const message = reason && reason.message ? reason.message : String(reason ?? '未处理的 Promise 拒绝');
+          showPreviewError(message, null);
+        });
+      } catch (_) {
+        /* 跨源 iframe：无法读取 contentWindow，按设计忽略 */
+      }
+    }
+    if (el.previewIframe) {
+      el.previewIframe.addEventListener('load', bindPreviewErrorListeners);
     }
 
     // 预览分屏拖拽宽度调整
@@ -2967,12 +4992,98 @@
     el.btnRefreshPreview.addEventListener('click', reloadPreviewIframe);
     el.btnClosePreview.addEventListener('click', closePreviewSplitPanel);
 
+    // --- v0.8.0 新增交互绑定 ------------------------------------------
+
+    // UI-REQ-01：四标签页切换
+    el.inspectorTabStrip.querySelectorAll('.inspector-tab').forEach((btn) => {
+      btn.addEventListener('click', () => switchInspectorTab(btn.dataset.ipane));
+    });
+    if (el.btnRefreshPreviewInline) {
+      el.btnRefreshPreviewInline.addEventListener('click', reloadPreviewIframe);
+    }
+
+    // UI-REQ-01：一键复制运行时错误
+    if (el.btnCopyPreviewError) {
+      el.btnCopyPreviewError.addEventListener('click', () => {
+        copyText(ui.lastPreviewError || el.previewErrorText.textContent || '', '报错信息已复制');
+      });
+    }
+
+    // UI-REQ-05：返回实时流
+    if (el.btnReturnLive) {
+      el.btnReturnLive.addEventListener('click', () => switchTab('current'));
+    }
+    // UI-REQ-05：浮出胶囊点击切回实时监控
+    if (el.newTurnPill) {
+      el.newTurnPill.addEventListener('click', () => {
+        ui.pendingNewTurn = null;
+        switchTab('current');
+      });
+    }
+    // UI-REQ-05：紧凑胶囊条展开/收起
+    [
+      [el.pillTier, 'tier'],
+      [el.pillMode, 'mode'],
+      [el.pillSandbox, 'sandbox']
+    ].forEach(([btn]) => {
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        ui.compactMenuOpen = !ui.compactMenuOpen;
+        renderCompactPolicyStrip();
+      });
+    });
+
+    // UI-REQ-04：保存至配置文件
+    if (el.btnConfigSave) {
+      el.btnConfigSave.addEventListener('click', async () => {
+        el.btnConfigSave.disabled = true;
+        const res = await apiPost(apiUrl('api/control/config/save'), {});
+        if (res.ok) {
+          // 落盘成功：把当前内存配置采为新基线，偏离标记随之清除
+          policyBaselineConfig = {};
+          for (const key of POLICY_DRIFT_FIELDS) {
+            policyBaselineConfig[key] = (state.runtimeConfig || {})[key];
+          }
+          ui.configDrifted = false;
+          renderPolicyPersistence();
+          const savedPath = res.data && res.data.savedPath ? ` → ${res.data.savedPath}` : '';
+          showToast(`策略已写入配置文件${savedPath}`, 'success');
+        } else {
+          el.btnConfigSave.disabled = false;
+        }
+      });
+    }
+    // UI-REQ-04：恢复默认（把运行时配置改回默认值，随后可再落盘）
+    if (el.btnConfigReset) {
+      el.btnConfigReset.addEventListener('click', async () => {
+        const defaults = {
+          thinkingLevel: 'medium',
+          taskMode: 'auto',
+          failOnEscape: true,
+          realtimeKillSwitch: true,
+          allowOutsideWorkspace: false,
+          pacingEnabled: true
+        };
+        const res = await apiPost(apiUrl('api/control/config'), defaults);
+        if (res.ok) {
+          Object.assign(state.runtimeConfig, defaults);
+          ui.configDrifted = true;
+          renderPolicy();
+          showToast('已恢复默认策略（内存生效，可再保存至配置文件）', 'warning');
+        }
+      });
+    }
+
     // 抽屉关闭
     el.btnCloseDrawer.addEventListener('click', closeArtifactDrawer);
     el.drawerOverlay.addEventListener('click', closeArtifactDrawer);
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         closeArtifactDrawer();
+        if (ui.compactMenuOpen) {
+          ui.compactMenuOpen = false;
+          renderCompactPolicyStrip();
+        }
       }
     });
 
@@ -3007,8 +5118,64 @@
         state.runtimeConfig = oldConfig;
         renderPolicy();
       } else {
-        showToast('策略配置热更新成功', 'success');
+        // UI-REQ-04：热改成功后即视为「与落盘值偏离，内存临时生效中」
+        ui.configDrifted = true;
+        renderPolicyPersistence();
+        showToast('策略配置热更新成功（内存临时生效中）', 'success');
       }
+    }
+
+    // -----------------------------------------------------------------
+    // UI-REQ-03：回合级回滚
+    // -----------------------------------------------------------------
+
+    /** 活跃回合卡片上的回滚点击：先弹二次确认，再落到 executeRollback。 */
+    function requestRollback(turnId) {
+      const turn = state.activeTurn;
+      if (!turn || !turnId) return;
+      // 活跃回合卡片本身没有行内确认区，用浏览器原生确认框完成二次确认
+      const confirmed = window.confirm(
+        `确认回滚本轮（${turnId}）的全部文件改动？\n\n` +
+        '将把本回合改动的受版本控制文件恢复到盘前快照，并清理本轮新建的未跟踪文件。此操作不可撤销。'
+      );
+      if (!confirmed) {
+        showToast('已取消回滚', 'info');
+        return;
+      }
+      executeRollback(turnId);
+    }
+
+    /** 真正执行回滚：POST api/control/rollback，成功后标记卡片。 */
+    async function executeRollback(turnId) {
+      const id = String(turnId || '').trim();
+      if (id === '') {
+        showToast('缺少 turnId，无法回滚', 'error');
+        return;
+      }
+      ui.rollbackConfirmTurnId = null;
+      showToast(`正在回滚回合 ${id} 的文件改动…`, 'info');
+      const res = await apiPost(apiUrl('api/control/rollback'), { turnId: id });
+      if (!res.ok) return;
+
+      // 乐观标记：活跃回合与历史环形缓冲里同一回合都打上 rolledBack
+      const data = res.data || {};
+      const restoredFiles = Array.isArray(data.restoredFiles) ? data.restoredFiles : [];
+      const removedUntracked = Array.isArray(data.removedUntracked) ? data.removedUntracked : [];
+      const markRolledBack = (turn) => {
+        if (!turn || String(turn.turnId || '') !== id) return;
+        turn.rolledBack = true;
+        turn.rollback = { restoredFiles, removedUntracked };
+      };
+      markRolledBack(state.activeTurn);
+      for (const turn of state.recentTurns || []) markRolledBack(turn);
+
+      showToast(
+        `回滚完成：恢复 ${restoredFiles.length} 个文件，清理 ${removedUntracked.length} 个新增文件`,
+        'success'
+      );
+      renderActiveTurnCard();
+      renderHistoryView();
+      refreshInspectorPanes();
     }
 
     // Thinking Level 点击
@@ -3095,9 +5262,22 @@
           state.activeTurn = JSON.parse(e.data);
           if (!state.activeTurn.steps) state.activeTurn.steps = [];
           ui.autoScrollPaused = false;
+          // UI-REQ-05：历史锁定期间不强制切页，改为浮出「新任务正在后台运行」胶囊
+          if (ui.activeTab === 'history') {
+            ui.pendingNewTurn = {
+              stepCount: 3,
+              tier: state.activeTurn.effectiveTier === 'pro' ? 'Pro' : (state.activeTurn.effectiveTier === 'flash' ? 'Flash' : 'Flash Lite')
+            };
+            renderHistoryLockBanner();
+          }
           renderActiveTurnCard();
           renderStepsTimeline();
           checkLivePreviewAvailability();
+          renderHistoryLockBanner();
+          if (ui.previewVisible) {
+            ui.autoSuggestedTurnId = null;
+            refreshInspectorPanes();
+          }
         } catch (_) {}
       });
 
@@ -3107,6 +5287,18 @@
           if (step && state.activeTurn) {
             state.activeTurn.steps.push(step);
             appendSingleStep(step);
+            // UI-REQ-05：锁定期间同步更新浮出胶囊的步骤计数
+            if (ui.activeTab === 'history' && ui.pendingNewTurn) {
+              ui.pendingNewTurn.stepCount = state.activeTurn.steps.length;
+              if (state.activeTurn.effectiveTier) {
+                ui.pendingNewTurn.tier = state.activeTurn.effectiveTier === 'pro' ? 'Pro' : 'Flash';
+              }
+              renderHistoryLockBanner();
+            }
+            // UI-REQ-01：终端标签页随步进实时刷新
+            if (ui.previewVisible && ui.inspectorTab === 'terminal') {
+              renderInspectorTerminalPane(getInspectorTurn());
+            }
           }
         } catch (_) {}
       });
@@ -3140,6 +5332,11 @@
           renderActiveTurnCard();
           renderStepsTimeline();
           renderHistoryView();
+          renderHistoryLockBanner();
+          if (ui.previewVisible) {
+            refreshInspectorPanes();
+            suggestInspectorTab(getInspectorTurn());
+          }
 
           // 自动刷新 iframe
           if (ui.previewVisible && el.chkAutoReload.checked) {
@@ -3162,6 +5359,7 @@
           const payload = JSON.parse(e.data);
           state.artifacts = payload.artifacts || [];
           renderArtifacts();
+          if (ui.previewVisible) renderInspectorPlanPane(getInspectorTurn());
         } catch (_) {}
       });
 
@@ -3171,6 +5369,56 @@
           state.runtimeConfig = payload.runtimeConfig || payload;
           renderPolicy();
           renderTopBar();
+        } catch (_) {}
+      });
+
+      // --- v0.8.0 新增 SSE 事件 --------------------------------------
+
+      // UI-REQ-04：配额单轮消耗增量
+      es.addEventListener('quota:burn', (e) => {
+        try {
+          const payload = JSON.parse(e.data);
+          if (!state.quota) state.quota = {};
+          state.quota.burn = payload;
+          // 回合卡片在结算前就能显示本次消耗
+          renderActiveTurnCard();
+          if (ui.previewVisible) refreshInspectorPanes();
+        } catch (_) {}
+      });
+
+      // UI-REQ-03：回滚完成
+      es.addEventListener('turn:rolled-back', (e) => {
+        try {
+          const payload = JSON.parse(e.data) || {};
+          const turnId = String(payload.turnId || '');
+          const markRolledBack = (turn) => {
+            if (!turn || String(turn.turnId || '') !== turnId) return;
+            turn.rolledBack = true;
+            turn.rollback = {
+              restoredFiles: Array.isArray(payload.restoredFiles) ? payload.restoredFiles : [],
+              removedUntracked: Array.isArray(payload.removedUntracked) ? payload.removedUntracked : []
+            };
+          };
+          markRolledBack(state.activeTurn);
+          for (const turn of state.recentTurns || []) markRolledBack(turn);
+          showToast(`回合 ${turnId} 已回滚`, 'success');
+          renderActiveTurnCard();
+          renderHistoryView();
+          if (ui.previewVisible) refreshInspectorPanes();
+        } catch (_) {}
+      });
+
+      // UI-REQ-03：长会话带记忆结转完成
+      es.addEventListener('session:rollover', (e) => {
+        try {
+          const payload = JSON.parse(e.data) || {};
+          const sessionId = payload.sessionId || '';
+          ui.rolloverPendingSessionId = null;
+          showToast(
+            `会话 ${sessionId} 已完成带记忆结转${payload.toConversationId ? ` → 新会话 ${String(payload.toConversationId).slice(0, 8)}` : ''}`,
+            'success'
+          );
+          renderSessions();
         } catch (_) {}
       });
 
